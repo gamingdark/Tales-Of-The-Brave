@@ -133,11 +133,18 @@ New-Item -ItemType Directory -Path $buildPath -Force | Out-Null
 $UnityPath = Find-UnityEditor $UnityPath
 $env:TALES_WEB_BUILD_PATH = $buildPath
 try {
-    & $UnityPath -batchmode -nographics -projectPath $projectRoot `
-        -buildTarget WebGL `
-        -logFile (Join-Path $projectRoot 'Logs\WebDeploymentBuild.log')
-    if ($LASTEXITCODE -ne 0) {
-        throw "Unity WebGL build failed with exit code $LASTEXITCODE. See Logs/WebDeploymentBuild.log."
+    $buildLogPath = Join-Path $projectRoot 'Logs\WebDeploymentBuild.log'
+    $unityArguments = @(
+        '-batchmode',
+        '-nographics',
+        '-projectPath', "`"$projectRoot`"",
+        '-buildTarget', 'WebGL',
+        '-logFile', "`"$buildLogPath`""
+    )
+    $unityProcess = Start-Process -FilePath $UnityPath -ArgumentList $unityArguments `
+        -Wait -PassThru -WindowStyle Hidden
+    if ($unityProcess.ExitCode -ne 0) {
+        throw "Unity WebGL build failed with exit code $($unityProcess.ExitCode). See Logs/WebDeploymentBuild.log."
     }
 }
 finally {
