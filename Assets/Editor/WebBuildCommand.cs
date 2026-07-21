@@ -7,6 +7,32 @@ using UnityEngine;
 
 namespace TalesOfVoyages.Editor
 {
+    [InitializeOnLoad]
+    internal static class WebBuildBatchBootstrap
+    {
+        static WebBuildBatchBootstrap()
+        {
+            if (!Application.isBatchMode ||
+                string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TALES_WEB_BUILD_PATH")))
+                return;
+            EditorApplication.delayCall += BuildAndExit;
+        }
+
+        private static void BuildAndExit()
+        {
+            try
+            {
+                WebBuildCommand.Build();
+                EditorApplication.Exit(0);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception);
+                EditorApplication.Exit(1);
+            }
+        }
+    }
+
     public static class WebBuildCommand
     {
         private const string OutputEnvironmentVariable = "TALES_WEB_BUILD_PATH";

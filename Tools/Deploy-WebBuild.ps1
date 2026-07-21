@@ -133,8 +133,8 @@ New-Item -ItemType Directory -Path $buildPath -Force | Out-Null
 $UnityPath = Find-UnityEditor $UnityPath
 $env:TALES_WEB_BUILD_PATH = $buildPath
 try {
-    & $UnityPath -batchmode -nographics -quit -projectPath $projectRoot `
-        -buildTarget WebGL -executeMethod TalesOfVoyages.Editor.WebBuildCommand.Build `
+    & $UnityPath -batchmode -nographics -projectPath $projectRoot `
+        -buildTarget WebGL `
         -logFile (Join-Path $projectRoot 'Logs\WebDeploymentBuild.log')
     if ($LASTEXITCODE -ne 0) {
         throw "Unity WebGL build failed with exit code $LASTEXITCODE. See Logs/WebDeploymentBuild.log."
