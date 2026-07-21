@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
+using UnityEngine;
 
 namespace TalesOfVoyages.Editor
 {
@@ -16,7 +17,34 @@ namespace TalesOfVoyages.Editor
             if (string.IsNullOrWhiteSpace(outputPath))
                 throw new InvalidOperationException($"{OutputEnvironmentVariable} must contain the WebGL output path.");
 
+            BuildTo(Path.GetFullPath(outputPath), false);
+        }
+
+        [MenuItem("Tales of Voyages/Build WebGL to WebsitePublish")]
+        public static void BuildFromEditor()
+        {
+            var projectRoot = Directory.GetParent(Application.dataPath)?.FullName
+                ?? throw new InvalidOperationException("Unable to determine the Unity project root.");
+            var outputPath = Path.Combine(
+                projectRoot, "WebsitePublish", "games", "tales-of-the-brave");
+
+            if (!EditorUtility.DisplayDialog(
+                    "Build WebGL",
+                    $"Replace the existing WebGL build at:\n{outputPath}?",
+                    "Build",
+                    "Cancel"))
+                return;
+
+            BuildTo(outputPath, true);
+            EditorUtility.RevealInFinder(outputPath);
+        }
+
+        private static void BuildTo(string outputPath, bool clearExistingOutput)
+        {
             outputPath = Path.GetFullPath(outputPath);
+            if (clearExistingOutput && Directory.Exists(outputPath))
+                Directory.Delete(outputPath, true);
+
             Directory.CreateDirectory(outputPath);
 
             var scenes = EditorBuildSettings.scenes

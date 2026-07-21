@@ -80,6 +80,13 @@ if (-not (Test-Path -LiteralPath (Join-Path $WebsiteRepository '.git'))) {
     throw "Website repository was not found at '$WebsiteRepository'."
 }
 
+# Unity cannot open the same project in batch mode while the Editor owns its lock.
+# Check this before any website checkout, branch creation, or output deletion.
+$unityLockFile = Join-Path $projectRoot 'Temp\UnityLockfile'
+if (Test-Path -LiteralPath $unityLockFile) {
+    throw "The Unity project is open. Close the Unity Editor before running command-line deployment. For a manual build while the Editor is open, use 'Tales of Voyages > Build WebGL to WebsitePublish'."
+}
+
 # The deployment must describe exactly the source state already published to origin/main.
 Assert-CleanRepository $projectRoot
 Invoke-Git $projectRoot @('fetch', 'origin', 'main') | Out-Null
