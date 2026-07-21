@@ -84,7 +84,15 @@ if (-not (Test-Path -LiteralPath (Join-Path $WebsiteRepository '.git'))) {
 # Check this before any website checkout, branch creation, or output deletion.
 $unityLockFile = Join-Path $projectRoot 'Temp\UnityLockfile'
 if (Test-Path -LiteralPath $unityLockFile) {
-    throw "The Unity project is open. Close the Unity Editor before running command-line deployment. For a manual build while the Editor is open, use 'Tales of Voyages > Build WebGL to WebsitePublish'."
+    try {
+        $lockStream = [IO.File]::Open($unityLockFile, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+        $lockStream.Dispose()
+        Remove-Item -LiteralPath $unityLockFile -Force
+        Write-Host 'Removed stale Unity project lock.'
+    }
+    catch {
+        throw "The Unity project is open. Close the Unity Editor before running command-line deployment. For a manual build while the Editor is open, use 'Tales of Voyages > Build WebGL to WebsitePublish'."
+    }
 }
 
 # The deployment must describe exactly the source state already published to origin/main.

@@ -55,6 +55,7 @@ crashlytics-build.properties
 
 # Test output
 /TestResults*.xml
+/Assets/Resources/PerformanceTestRun*.json*
 
 # OS files
 .DS_Store
