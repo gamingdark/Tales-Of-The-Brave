@@ -34,7 +34,7 @@ function Invoke-Git {
     if ($gitExitCode -ne 0) {
         throw "git $($Arguments -join ' ') failed in '$Repository':`n$($output -join [Environment]::NewLine)"
     }
-    return $output
+    return @($output | ForEach-Object { $_.ToString() })
 }
 
 function Assert-CleanRepository {
