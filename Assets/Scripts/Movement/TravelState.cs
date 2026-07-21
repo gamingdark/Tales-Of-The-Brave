@@ -25,9 +25,11 @@ namespace TalesOfVoyages.Simulation.Movement
             return DayStartEdgeProgress + (DayEndEdgeProgress - DayStartEdgeProgress) * Math.Max(0f, Math.Min(1f, dayProgress));
         }
 
-        public bool IsEnteringPort(float dayProgress) =>
+        public bool IsApproachingNode(float dayProgress) =>
             IsTravelling &&
             ArrivalDayFraction >= 0f &&
             dayProgress >= ArrivalDayFraction;
+
+        public bool IsEnteringPort(float dayProgress) => IsApproachingNode(dayProgress);
     }
 }

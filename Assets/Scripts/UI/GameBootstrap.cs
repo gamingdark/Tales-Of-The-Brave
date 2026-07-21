@@ -1,15 +1,16 @@
 using UnityEngine;
 using TalesOfVoyages.Simulation.Core;
+using TalesOfVoyages.Graphics;
+using TalesOfVoyages.Simulation.Rulesets;
 
 namespace TalesOfVoyages.Unity.UI
 {
     public sealed class GameBootstrap : MonoBehaviour
     {
-        [Header("Map Icons")]
-        [SerializeField] private Sprite klaipedaIcon;
-        [SerializeField] private Sprite rigaIcon;
-        [SerializeField] private Sprite helsinkiIcon;
-        [SerializeField] private Sprite playerShipIcon;
+        [Header("Map Graphics")]
+        [SerializeField] private ExternalGraphicsCatalog externalGraphics;
+        [SerializeField] private Sprite portWindowFrame;
+        [SerializeField] private Material portPortraitMaterial;
         [SerializeField, Min(0.01f)] private float mapIconScale = 0.4f;
 
         [Header("Map Bounds")]
@@ -28,13 +29,45 @@ namespace TalesOfVoyages.Unity.UI
         private void Awake()
         {
             DontDestroyOnLoad(gameObject);
-            Context = MvpGameFactory.Create();
-            gameObject.AddComponent<MvpDemoUI>().Initialize(Context, mapBottomLeft, mapTopRight);
+            var definition = MvpWorldDefinition.CreateDefault();
+            MvpWorldDefinitionValidator.Validate(definition, externalGraphics);
+            Context = MvpGameFactory.Create(definition);
+            gameObject.AddComponent<MvpDemoUI>().Initialize(
+                Context, mapBottomLeft, mapTopRight, externalGraphics, portWindowFrame, portPortraitMaterial);
             gameObject.AddComponent<MapEntitySceneController>().Initialize(
-                Context, mapBottomLeft, mapTopRight,
-                klaipedaIcon, rigaIcon, helsinkiIcon, playerShipIcon, mapIconScale);
+                Context, mapBottomLeft, mapTopRight, externalGraphics, mapIconScale);
         }
 
-        private void Update() => Context.Time.Tick(UnityEngine.Time.deltaTime);
+        private void Update() => Context.Tick(UnityEngine.Time.deltaTime);
+
+#if UNITY_EDITOR
+        private void OnValidate()
+        {
+            var changed = false;
+            if (portPortraitMaterial == null)
+            {
+                portPortraitMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(
+                    "Assets/Graphics/PortPortrait.mat");
+                changed = portPortraitMaterial != null;
+            }
+            if (portWindowFrame == null)
+            {
+                var assets = UnityEditor.AssetDatabase.LoadAllAssetsAtPath("Assets/Graphics/window-port.png");
+                Sprite largest = null;
+                foreach (var asset in assets)
+                {
+                    if (!(asset is Sprite sprite)) continue;
+                    if (largest == null || sprite.rect.width * sprite.rect.height > largest.rect.width * largest.rect.height)
+                        largest = sprite;
+                }
+                if (largest != null)
+                {
+                    portWindowFrame = largest;
+                    changed = true;
+                }
+            }
+            if (changed) UnityEditor.EditorUtility.SetDirty(this);
+        }
+#endif
     }
 }

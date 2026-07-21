@@ -1,25 +1,32 @@
 using System.Linq;
 using NUnit.Framework;
-using TalesOfVoyages.Simulation.Core;
+using TalesOfVoyages.Simulation.World;
 
 public sealed class WorldGraphTests
 {
     [Test]
-    public void InitialWorldContainsThreePortsConnectedAsATriangle()
+    public void AddedEdgeConnectsItsTwoNodes()
     {
-        var game = MvpGameFactory.Create();
-        Assert.That(game.World.Nodes.Count, Is.EqualTo(3));
-        Assert.That(game.World.Edges.Count, Is.EqualTo(3));
-        Assert.That(game.World.GetEdge("route_klaipeda_riga").MapWaypoints.Count, Is.EqualTo(5));
-        Assert.That(game.World.GetEdge("route_riga_helsinki").MapWaypoints.Count, Is.EqualTo(6));
-        Assert.That(game.World.GetEdge("route_helsinki_klaipeda").MapWaypoints.Count, Is.EqualTo(5));
-        Assert.That(game.World.Edges.SelectMany(edge => edge.MapWaypoints).Count(), Is.EqualTo(16));
-        Assert.That(game.World.GetNeighbors("port_klaipeda").Select(node => node.Id),
-            Is.EquivalentTo(new[] { "port_riga", "port_helsinki" }));
-        Assert.That(game.World.GetNeighbors("port_riga").Select(node => node.Id),
-            Is.EquivalentTo(new[] { "port_klaipeda", "port_helsinki" }));
-        Assert.That(game.World.GetNeighbors("port_helsinki").Select(node => node.Id),
-            Is.EquivalentTo(new[] { "port_riga", "port_klaipeda" }));
-        Assert.That(game.PlayerShip.Travel.CurrentNodeId, Is.EqualTo("port_klaipeda"));
+        var graph = CreateTwoNodeGraph();
+
+        Assert.That(graph.GetNeighbors("node_a").Select(node => node.Id), Is.EquivalentTo(new[] { "node_b" }));
+        Assert.That(graph.GetNeighbors("node_b").Select(node => node.Id), Is.EquivalentTo(new[] { "node_a" }));
+    }
+
+    [Test]
+    public void FindRouteReturnsPathThroughConnectedNodes()
+    {
+        var graph = CreateTwoNodeGraph();
+
+        Assert.That(graph.FindRoute("node_a", "node_b"), Is.EqualTo(new[] { "node_a", "node_b" }));
+    }
+
+    private static WorldGraph CreateTwoNodeGraph()
+    {
+        var graph = new WorldGraph();
+        graph.AddNode(new WorldNode("node_a", "A", WorldNodeType.Port, 0f, 0f));
+        graph.AddNode(new WorldNode("node_b", "B", WorldNodeType.Port, 1f, 1f));
+        graph.AddEdge(new WorldEdge("edge_ab", "node_a", "node_b", 10f));
+        return graph;
     }
 }

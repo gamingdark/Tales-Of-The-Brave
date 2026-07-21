@@ -13,7 +13,8 @@ namespace TalesOfVoyages.Simulation.World
         public float MapY { get; }
         public bool IsDiscovered { get; private set; }
 
-        public WorldNode(string id, string displayName, WorldNodeType type, float mapX, float mapY, bool discovered = true)
+        public WorldNode(string id, string displayName, WorldNodeType type, float mapX, float mapY,
+            bool discovered = true)
         {
             Id = string.IsNullOrWhiteSpace(id) ? throw new ArgumentException("A node ID is required.", nameof(id)) : id;
             DisplayName = displayName ?? throw new ArgumentNullException(nameof(displayName));

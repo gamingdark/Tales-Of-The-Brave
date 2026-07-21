@@ -1,4 +1,5 @@
 using System;
+using TalesOfVoyages.Simulation.Entities;
 
 namespace TalesOfVoyages.Simulation.Movement
 {
@@ -6,16 +7,36 @@ namespace TalesOfVoyages.Simulation.Movement
     {
         public string Id { get; }
         public string DisplayName { get; }
-        public float SpeedPerDay { get; }
+        private readonly Entity entity;
+        public float SpeedPerDay => entity.GetBehavior<PlayerControlledBehavior>().SpeedPerDay;
         public TravelState Travel { get; }
+        public string MapIconSprite => entity.GetBehavior<DrawableBehavior>().MapIconSprite;
+        public Entity Entity => entity;
 
-        public Transport(string id, string displayName, float speedPerDay, string startingNodeId)
+        public Transport(string id, string displayName, float speedPerDay, string startingNodeId,
+            string mapIconSprite = null)
+            : this(CreateEntity(id, displayName, speedPerDay, startingNodeId, mapIconSprite))
         {
-            if (speedPerDay <= 0f) throw new ArgumentOutOfRangeException(nameof(speedPerDay));
-            Id = id ?? throw new ArgumentNullException(nameof(id));
-            DisplayName = displayName ?? throw new ArgumentNullException(nameof(displayName));
-            SpeedPerDay = speedPerDay;
-            Travel = new TravelState { CurrentNodeId = startingNodeId ?? throw new ArgumentNullException(nameof(startingNodeId)) };
+        }
+
+        public Transport(Entity entity)
+        {
+            this.entity = entity ?? throw new ArgumentNullException(nameof(entity));
+            Id = entity.Id;
+            DisplayName = entity.DisplayName;
+            if (SpeedPerDay <= 0f) throw new ArgumentOutOfRangeException(nameof(entity), "Speed per day must be positive.");
+            var startingNodeId = entity.GetBehavior<WorldEntityBehavior>().StartingNodeId;
+            Travel = new TravelState { CurrentNodeId = startingNodeId };
+        }
+
+        private static Entity CreateEntity(
+            string id, string displayName, float speedPerDay, string startingNodeId, string mapIconSprite)
+        {
+            var entity = new Entity(id, displayName);
+            entity.AddBehavior(new PlayerControlledBehavior(speedPerDay));
+            entity.AddBehavior(new DrawableBehavior(mapIconSprite));
+            entity.AddBehavior(new WorldEntityBehavior(startingNodeId));
+            return entity;
         }
     }
 }

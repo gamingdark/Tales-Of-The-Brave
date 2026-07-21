@@ -4,6 +4,8 @@ using UnityEngine;
 using TalesOfVoyages.Simulation.Core;
 using TalesOfVoyages.Simulation.Movement;
 using TalesOfVoyages.Simulation.World;
+using TalesOfVoyages.Graphics;
+using TalesOfVoyages.Simulation.Entities;
 
 namespace TalesOfVoyages.Unity.UI
 {
@@ -14,10 +16,7 @@ namespace TalesOfVoyages.Unity.UI
         private GameContext context;
         private Transform bottomLeft;
         private Transform topRight;
-        private Sprite klaipedaIcon;
-        private Sprite rigaIcon;
-        private Sprite helsinkiIcon;
-        private Sprite playerShipIcon;
+        private ExternalGraphicsCatalog graphics;
         private float iconScale;
         private Transform entityRoot;
         private Material routeMaterial;
@@ -26,19 +25,13 @@ namespace TalesOfVoyages.Unity.UI
             GameContext gameContext,
             Transform mapBottomLeft,
             Transform mapTopRight,
-            Sprite klaipedaSprite,
-            Sprite rigaSprite,
-            Sprite helsinkiSprite,
-            Sprite playerShipSprite,
+            ExternalGraphicsCatalog graphicsCatalog,
             float mapIconScale)
         {
             context = gameContext ?? throw new ArgumentNullException(nameof(gameContext));
             bottomLeft = mapBottomLeft;
             topRight = mapTopRight;
-            klaipedaIcon = klaipedaSprite;
-            rigaIcon = rigaSprite;
-            helsinkiIcon = helsinkiSprite;
-            playerShipIcon = playerShipSprite;
+            graphics = graphicsCatalog ?? throw new ArgumentNullException(nameof(graphicsCatalog));
             iconScale = Mathf.Max(0.01f, mapIconScale);
 
             entityRoot = new GameObject("Runtime Map Entities").transform;
@@ -55,18 +48,16 @@ namespace TalesOfVoyages.Unity.UI
 
         private void CreateViews()
         {
-            foreach (var node in context.World.Nodes)
+            foreach (var entity in context.Entities)
             {
-                var icon = node.Id == "port_klaipeda" ? klaipedaIcon
-                    : node.Id == "port_riga" ? rigaIcon
-                    : node.Id == "port_helsinki" ? helsinkiIcon
-                    : null;
-                var view = CreateView(node.Id, icon, 10);
-                view.InitializePort(node);
+                if (entity.HasBehavior<PlayerControlledBehavior>()) continue;
+                var drawable = entity.GetBehavior<DrawableBehavior>();
+                var view = CreateView(entity.Id, graphics.GetSprite(drawable.MapIconSprite), 10);
+                view.InitializeEntity(entity);
             }
 
             var ship = context.PlayerShip;
-            var shipView = CreateView(ship.Id, playerShipIcon, 20);
+            var shipView = CreateView(ship.Id, graphics.GetSprite(ship.MapIconSprite), 20);
             shipView.InitializeTransport(ship);
         }
 
@@ -132,8 +123,12 @@ namespace TalesOfVoyages.Unity.UI
                 line.SetPosition(line.positionCount - 1, MapToWorld(nodeB.MapX, nodeB.MapY, 0f));
             }
 
-            foreach (var node in context.World.Nodes)
-                views[node.Id].transform.position = MapToWorld(node.MapX, node.MapY);
+            foreach (var entity in context.Entities)
+            {
+                if (entity.HasBehavior<PlayerControlledBehavior>()) continue;
+                var node = context.World.GetNode(entity.GetBehavior<WorldEntityBehavior>().StartingNodeId);
+                views[entity.Id].transform.position = MapToWorld(node.MapX, node.MapY);
+            }
 
             var ship = context.PlayerShip;
             var shipView = views[ship.Id];

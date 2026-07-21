@@ -3,6 +3,8 @@ using UnityEngine;
 using TalesOfVoyages.Simulation.Core;
 using TalesOfVoyages.Simulation.Time;
 using TalesOfVoyages.Simulation.World;
+using TalesOfVoyages.Graphics;
+using TalesOfVoyages.Simulation.Entities;
 
 namespace TalesOfVoyages.Unity.UI
 {
@@ -15,12 +17,26 @@ namespace TalesOfVoyages.Unity.UI
         private Transform mapBottomLeft;
         private Transform mapTopRight;
         private Camera mapCamera;
+        private ExternalGraphicsCatalog graphics;
+        private Sprite portWindowFrame;
+        private GUIStyle encounterTitleStyle;
+        private Material circularImageMaterial;
+        private const float PortPortraitInsetScale = 0.9f;
 
-        public void Initialize(GameContext gameContext, Transform bottomLeft, Transform topRight)
+        public void Initialize(
+            GameContext gameContext,
+            Transform bottomLeft,
+            Transform topRight,
+            ExternalGraphicsCatalog graphicsCatalog,
+            Sprite windowFrame,
+            Material portraitMaterial)
         {
             context = gameContext ?? throw new ArgumentNullException(nameof(gameContext));
             mapBottomLeft = bottomLeft;
             mapTopRight = topRight;
+            graphics = graphicsCatalog ?? throw new ArgumentNullException(nameof(graphicsCatalog));
+            portWindowFrame = windowFrame;
+            circularImageMaterial = portraitMaterial;
         }
 
         private void EnsureStyles()
@@ -36,6 +52,12 @@ namespace TalesOfVoyages.Unity.UI
             centeredStyle.hover.background = Texture2D.whiteTexture;
 
             logStyle = new GUIStyle(GUI.skin.label) { wordWrap = true, alignment = TextAnchor.UpperLeft };
+            encounterTitleStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 28,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter
+            };
         }
 
         private void OnGUI()
@@ -52,9 +74,8 @@ namespace TalesOfVoyages.Unity.UI
             GUILayout.Space(6f);
             GUILayout.BeginHorizontal();
             SpeedButton("Pause", TimeSpeed.Paused);
-            SpeedButton("1×", TimeSpeed.Normal);
-            SpeedButton("2×", TimeSpeed.Fast);
-            SpeedButton("4×", TimeSpeed.VeryFast);
+            foreach (var speed in context.Time.AllowedSpeeds)
+                SpeedButton($"{(int)speed}×", speed);
             GUILayout.EndHorizontal();
             if (GUILayout.Button("Developer: advance one day")) context.Time.AdvanceDay();
             GUILayout.Space(14f);
@@ -69,6 +90,7 @@ namespace TalesOfVoyages.Unity.UI
             }
             GUILayout.EndArea();
             DrawMap(map);
+            DrawEnteringPortOverlay(map);
         }
 
         private void SpeedButton(string label, TimeSpeed speed)
@@ -86,10 +108,10 @@ namespace TalesOfVoyages.Unity.UI
             if (!ship.Travel.IsTravelling)
             {
                 var location = context.World.GetNode(ship.Travel.CurrentNodeId);
-                GUILayout.Label($"In port: {location.DisplayName}");
+                GUILayout.Label($"In port: {context.GetPortAtNode(location.Id).DisplayName}");
                 if (ship.Travel.HasPlannedAction)
                 {
-                    var plannedPort = context.World.GetNode(ship.Travel.PlannedDestinationNodeId);
+                    var plannedPort = context.GetPortAtNode(ship.Travel.PlannedDestinationNodeId);
                     GUILayout.Label($"Planned for tomorrow: sail to {plannedPort.DisplayName}");
                     if (GUILayout.Button("Cancel planned voyage")) context.Movement.CancelPlannedDestination(ship.Id);
                 }
@@ -97,28 +119,48 @@ namespace TalesOfVoyages.Unity.UI
                 {
                     GUILayout.Label("Available destinations:");
                     foreach (var destination in context.World.GetNeighbors(location.Id))
-                        if (GUILayout.Button($"Plan voyage to {destination.DisplayName}"))
+                        if (GUILayout.Button($"Plan voyage to {context.GetPortAtNode(destination.Id).DisplayName}"))
                             context.Movement.PlanDestination(ship.Id, destination.Id);
                 }
             }
             else
             {
                 var visualProgress = ship.Travel.GetVisualEdgeProgress(context.Time.DayProgress);
-                if (ship.Travel.IsEnteringPort(context.Time.DayProgress))
-                    GUILayout.Label($"Entering port {context.World.GetNode(ship.Travel.DestinationNodeId).DisplayName}");
+                var interaction = context.GetPendingInteractionEntity();
+                if (interaction != null)
+                {
+                    GUILayout.Label($"Entering port {interaction.DisplayName}");
+                    DrawInteractionLayoutActions(interaction);
+                }
                 else
+                {
                     GUILayout.Label($"At sea — {visualProgress:P0} of current leg");
-                var progressRect = GUILayoutUtility.GetRect(100f, 18f);
-                GUI.Box(progressRect, GUIContent.none);
-                GUI.Box(new Rect(progressRect.x + 2f, progressRect.y + 2f, (progressRect.width - 4f) * visualProgress, progressRect.height - 4f), GUIContent.none);
+                    var progressRect = GUILayoutUtility.GetRect(100f, 18f);
+                    GUI.Box(progressRect, GUIContent.none);
+                    GUI.Box(new Rect(
+                        progressRect.x + 2f,
+                        progressRect.y + 2f,
+                        (progressRect.width - 4f) * visualProgress,
+                        progressRect.height - 4f), GUIContent.none);
+                }
             }
+        }
+
+        private void DrawInteractionLayoutActions(Entity entity)
+        {
+            foreach (var action in entity.Actions)
+                if (GUILayout.Button(action.Label)) action.Execute(context);
         }
 
         private void DrawMap(Rect rect)
         {
-            foreach (var node in context.World.Nodes)
-                if (node.Type == WorldNodeType.Port)
-                    DrawPortLabel(MapToGui(rect, node.MapX, node.MapY), node.DisplayName);
+            foreach (var entity in context.Entities)
+                if (entity.HasBehavior<TalesOfVoyages.Simulation.Entities.PortBehavior>())
+                {
+                    var node = context.World.GetNode(
+                        entity.GetBehavior<TalesOfVoyages.Simulation.Entities.WorldEntityBehavior>().StartingNodeId);
+                    DrawPortLabel(MapToGui(rect, node.MapX, node.MapY), entity.DisplayName);
+                }
         }
 
         private Rect GetMapRect(Rect controls, float margin)
@@ -145,6 +187,86 @@ namespace TalesOfVoyages.Unity.UI
 
         private void DrawPortLabel(Vector2 point, string label) =>
             GUI.Label(new Rect(point.x - 70f, point.y + 34f, 140f, 24f), label, centeredStyle);
+
+        private void DrawEnteringPortOverlay(Rect mapRect)
+        {
+            var port = context.GetPendingInteractionEntity();
+            if (port == null || portWindowFrame == null) return;
+
+            var size = Mathf.Min(380f, Mathf.Min(mapRect.width * 0.55f, mapRect.height * 0.62f));
+            var frameRect = new Rect(
+                mapRect.center.x - size * 0.5f,
+                mapRect.center.y - size * 0.58f,
+                size,
+                size);
+            var portraitRect = new Rect(
+                frameRect.x + size * 0.16f,
+                frameRect.y + size * 0.16f,
+                size * 0.68f,
+                size * 0.68f);
+            portraitRect = ScaleRectAroundCenter(portraitRect, PortPortraitInsetScale);
+            var portSprite = graphics.GetSprite(port.GetBehavior<PortBehavior>().PortViewSprite);
+
+            if (Event.current.type == EventType.Repaint)
+                DrawCircularTexture(portraitRect, portSprite.texture);
+            GUI.DrawTexture(frameRect, portWindowFrame.texture, ScaleMode.ScaleToFit, true);
+
+            var labelRect = new Rect(frameRect.x, frameRect.yMax + 2f, size, 38f);
+            GUI.Label(labelRect, port.DisplayName, encounterTitleStyle);
+            var buttonRect = new Rect(frameRect.center.x - 90f, labelRect.yMax + 6f, 180f, 32f);
+            foreach (var action in port.Actions)
+            {
+                if (GUI.Button(buttonRect, action.Label)) action.Execute(context);
+                buttonRect.y += 38f;
+            }
+        }
+
+        private void DrawCircularTexture(Rect rect, Texture texture)
+        {
+            if (circularImageMaterial == null) return;
+
+            circularImageMaterial.mainTexture = texture;
+            circularImageMaterial.SetPass(0);
+            GL.PushMatrix();
+            GL.LoadPixelMatrix(0f, Screen.width, Screen.height, 0f);
+            GL.Begin(GL.TRIANGLES);
+            GL.Color(Color.white);
+            const int segments = 64;
+            for (var i = 0; i < segments; i++)
+            {
+                var angleA = i * Mathf.PI * 2f / segments;
+                var angleB = (i + 1) * Mathf.PI * 2f / segments;
+                GL.TexCoord2(0.5f, 0.5f);
+                GL.Vertex3(rect.center.x, rect.center.y, 0f);
+                AddCircularVertex(rect, angleA);
+                AddCircularVertex(rect, angleB);
+            }
+            GL.End();
+            GL.PopMatrix();
+        }
+
+        private static void AddCircularVertex(Rect rect, float angle)
+        {
+            var x = Mathf.Cos(angle);
+            var y = Mathf.Sin(angle);
+            // GUI/GL screen Y grows downward, while texture V grows upward.
+            GL.TexCoord2(x * 0.5f + 0.5f, 0.5f - y * 0.5f);
+            GL.Vertex3(
+                rect.center.x + x * rect.width * 0.5f,
+                rect.center.y + y * rect.height * 0.5f,
+                0f);
+        }
+
+        private static Rect ScaleRectAroundCenter(Rect rect, float scale)
+        {
+            var width = rect.width * scale;
+            var height = rect.height * scale;
+            return new Rect(
+                rect.center.x - width * 0.5f,
+                rect.center.y - height * 0.5f,
+                width,
+                height);
+        }
 
     }
 }

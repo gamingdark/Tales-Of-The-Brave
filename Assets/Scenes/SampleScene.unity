@@ -382,6 +382,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1313552059}
   - component: {fileID: 1313552060}
+  - component: {fileID: 1313552061}
   m_Layer: 0
   m_Name: GameSystems
   m_TagString: Untagged
@@ -416,14 +417,67 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f0333850ddc3c274b8e9053e3467bc17, type: 3}
   m_Name: 
   m_EditorClassIdentifier: TalesOfVoyages::TalesOfVoyages.Unity.UI.GameBootstrap
-  klaipedaIcon: {fileID: -2696506250795634678, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
-  rigaIcon: {fileID: -2248273014285675650, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
-  helsinkiIcon: {fileID: 6621252853494989987, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
-  playerShipIcon: {fileID: 4202938828118557322, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
+  externalGraphics: {fileID: 1313552061}
+  portWindowFrame: {fileID: 21300000, guid: c714db52aa6546c40836069dc008c7aa, type: 3}
+  portPortraitMaterial: {fileID: 2100000, guid: 55882fc38ac246369747da5677d61d5b, type: 2}
   mapIconScale: 0.4
-  labelBackground: {fileID: 10911, guid: 0000000000000000f000000000000000, type: 0}
   mapBottomLeft: {fileID: 1800000002}
   mapTopRight: {fileID: 1800000004}
+--- !u!114 &1313552061
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1313552058}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2319a03f600e4193bfab967762d4cb5d, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: TalesOfVoyages::TalesOfVoyages.Graphics.ExternalGraphicsCatalog
+  entries:
+  - name: icons.0
+    sprite: {fileID: -2978653956524333172, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
+  - name: icons.1
+    sprite: {fileID: -299690340437171572, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
+  - name: icons.10
+    sprite: {fileID: 3876512272233767631, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
+  - name: icons.11
+    sprite: {fileID: -5166432130525955749, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
+  - name: icons.12
+    sprite: {fileID: 7627503616358371109, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
+  - name: icons.13
+    sprite: {fileID: -1414468336072662494, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
+  - name: icons.14
+    sprite: {fileID: 8890533060992490834, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
+  - name: icons.15
+    sprite: {fileID: -4956809556694966118, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
+  - name: icons.2
+    sprite: {fileID: -1290855366162983238, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
+  - name: icons.3
+    sprite: {fileID: -2248273014285675650, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
+  - name: icons.4
+    sprite: {fileID: -2696506250795634678, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
+  - name: icons.5
+    sprite: {fileID: 6621252853494989987, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
+  - name: icons.6
+    sprite: {fileID: 3357360333254942192, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
+  - name: icons.7
+    sprite: {fileID: -4297203505398261690, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
+  - name: icons.8
+    sprite: {fileID: 4202938828118557322, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
+  - name: icons.9
+    sprite: {fileID: 2189712646507832853, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
+  - name: img-helsinki
+    sprite: {fileID: 21300000, guid: 3c6585cafe7ea7b4d9ecba2584b80375, type: 3}
+  - name: img-klaipeda
+    sprite: {fileID: 21300000, guid: 2b7c77ce2008a994a86ba80760bfc8d8, type: 3}
+  - name: img-riga
+    sprite: {fileID: 21300000, guid: c2972fcfeacc1f04395dd322e59321fd, type: 3}
+  - name: map
+    sprite: {fileID: 21300000, guid: cee49eda1d1be5148a5368bfe49f899e, type: 3}
+  - name: window-port
+    sprite: {fileID: 21300000, guid: c714db52aa6546c40836069dc008c7aa, type: 3}
 --- !u!1 &1702571438
 GameObject:
   m_ObjectHideFlags: 0

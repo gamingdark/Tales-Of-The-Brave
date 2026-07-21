@@ -1,6 +1,7 @@
 using UnityEngine;
 using TalesOfVoyages.Simulation.Movement;
 using TalesOfVoyages.Simulation.World;
+using TalesOfVoyages.Simulation.Entities;
 
 namespace TalesOfVoyages.Unity.UI
 {
@@ -23,14 +24,14 @@ namespace TalesOfVoyages.Unity.UI
         public string State => state;
         public string LocationNodeId => locationNodeId;
 
-        public void InitializePort(WorldNode node)
+        public void InitializeEntity(Entity entity)
         {
-            entityId = node.Id;
-            displayName = node.DisplayName;
-            entityType = node.Type.ToString();
-            state = node.IsDiscovered ? "Discovered" : "Undiscovered";
-            locationNodeId = node.Id;
-            name = $"Port - {node.DisplayName}";
+            entityId = entity.Id;
+            displayName = entity.DisplayName;
+            entityType = entity.HasBehavior<PortBehavior>() ? "Port" : "Entity";
+            state = "Active";
+            locationNodeId = entity.GetBehavior<WorldEntityBehavior>().StartingNodeId;
+            name = $"{entityType} - {entity.DisplayName}";
         }
 
         public void InitializeTransport(Transport transport)
