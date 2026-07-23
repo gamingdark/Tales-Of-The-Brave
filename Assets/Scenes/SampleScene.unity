@@ -478,6 +478,8 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 2b7c77ce2008a994a86ba80760bfc8d8, type: 3}
   - name: img-riga
     sprite: {fileID: 21300000, guid: c2972fcfeacc1f04395dd322e59321fd, type: 3}
+  - name: img-stockholm
+    sprite: {fileID: 21300000, guid: 2fd1d02ae954d6c468ac92fecabd5e9d, type: 3}
   - name: map
     sprite: {fileID: 21300000, guid: cee49eda1d1be5148a5368bfe49f899e, type: 3}
   - name: window-port

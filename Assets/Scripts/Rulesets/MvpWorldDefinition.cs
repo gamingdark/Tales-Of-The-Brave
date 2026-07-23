@@ -24,9 +24,11 @@ namespace TalesOfVoyages.Simulation.Rulesets
                     new WorldNodeDefinition("node_klaipeda", "Klaipėda", WorldNodeType.Port, 0.62f, 0.2f),
                     new WorldNodeDefinition("node_riga", "Riga", WorldNodeType.Port, 0.73f, 0.33f),
                     new WorldNodeDefinition("node_helsinki", "Helsinki", WorldNodeType.Port, 0.70f, 0.63f),
+                    new WorldNodeDefinition("node_stockholm", "Stockholm", WorldNodeType.Port, 0.5f, 0.57f),
                     new WorldNodeDefinition("node_irbe_strait", "Irbe Strait", WorldNodeType.Sea, 0.63f, 0.39f),
                     new WorldNodeDefinition("node_west_courland", "West of Courland", WorldNodeType.Sea, 0.59f, 0.32f),
-                    new WorldNodeDefinition("node_west_saaremaa", "West of Saaremaa", WorldNodeType.Sea, 0.61f, 0.47f)
+                    new WorldNodeDefinition("node_west_saaremaa", "West of Saaremaa", WorldNodeType.Sea, 0.61f, 0.47f),
+                    new WorldNodeDefinition("node_stockholm_archipelago", "Stockholm Archipelago", WorldNodeType.Sea, 0.535f, 0.535f)
                 },
                 Edges = new List<WorldEdgeDefinition>
                 {
@@ -53,12 +55,16 @@ namespace TalesOfVoyages.Simulation.Rulesets
 
                     new WorldEdgeDefinition("route_courland_saaremaa", "node_west_courland", "node_west_saaremaa", 40f),
                     new WorldEdgeDefinition("route_irbe_saaremaa", "node_irbe_strait", "node_west_saaremaa", 25f),
+                    new WorldEdgeDefinition("route_stockholm_archipelago", "node_stockholm", "node_stockholm_archipelago", 15f),
+                    new WorldEdgeDefinition("route_courland_archipelago", "node_west_courland", "node_stockholm_archipelago", 60f),
+                    new WorldEdgeDefinition("route_saaremaa_archipelago", "node_west_saaremaa", "node_stockholm_archipelago", 40f),
                 },
                 Entities = new List<EntityDefinition>
                 {
                     CreatePort("port_klaipeda", "Klaipėda", "node_klaipeda", "icons.4", "img-klaipeda"),
                     CreatePort("port_riga", "Riga", "node_riga", "icons.3", "img-riga"),
                     CreatePort("port_helsinki", "Helsinki", "node_helsinki", "icons.5", "img-helsinki"),
+                    CreatePort("port_stockholm", "Stockholm", "node_stockholm", "icons.7", "img-stockholm"),
                     new PlayerShipDefinition(
                         GameContext.PlayerShipId, "The Unsinkable MVP", 25f, "node_klaipeda", "icons.8")
                 }
