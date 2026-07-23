@@ -11,11 +11,20 @@ namespace TalesOfVoyages.Unity.UI
         [SerializeField] private ExternalGraphicsCatalog externalGraphics;
         [SerializeField] private Sprite portWindowFrame;
         [SerializeField] private Material portPortraitMaterial;
+        [SerializeField] private Shader roundedMapShader;
         [SerializeField, Min(0.01f)] private float mapIconScale = 0.4f;
 
         [Header("Map Bounds")]
         [SerializeField] private Transform mapBottomLeft;
         [SerializeField] private Transform mapTopRight;
+
+        [Header("Left Menu Bounds")]
+        [SerializeField] private Transform leftMenuBottomLeft;
+        [SerializeField] private Transform leftMenuTopRight;
+
+        [Header("Bottom Menu Bounds")]
+        [SerializeField] private Transform bottomMenuBottomLeft;
+        [SerializeField] private Transform bottomMenuTopRight;
 
         public GameContext Context { get; private set; }
 
@@ -32,10 +41,28 @@ namespace TalesOfVoyages.Unity.UI
             var definition = MvpWorldDefinition.CreateDefault();
             MvpWorldDefinitionValidator.Validate(definition, externalGraphics);
             Context = MvpGameFactory.Create(definition);
+            var mapController = gameObject.AddComponent<MapEntitySceneController>();
+            mapController.Initialize(
+                Context,
+                mapBottomLeft,
+                mapTopRight,
+                externalGraphics,
+                definition.MapBackgroundSprite,
+                definition.SceneBackgroundSprite,
+                roundedMapShader,
+                mapIconScale);
             gameObject.AddComponent<MvpDemoUI>().Initialize(
-                Context, mapBottomLeft, mapTopRight, externalGraphics, portWindowFrame, portPortraitMaterial);
-            gameObject.AddComponent<MapEntitySceneController>().Initialize(
-                Context, mapBottomLeft, mapTopRight, externalGraphics, mapIconScale);
+                Context,
+                mapBottomLeft,
+                mapTopRight,
+                leftMenuBottomLeft,
+                leftMenuTopRight,
+                bottomMenuBottomLeft,
+                bottomMenuTopRight,
+                externalGraphics,
+                portWindowFrame,
+                portPortraitMaterial,
+                mapController);
         }
 
         private void Update() => Context.Tick(UnityEngine.Time.deltaTime);
@@ -49,6 +76,12 @@ namespace TalesOfVoyages.Unity.UI
                 portPortraitMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(
                     "Assets/Graphics/PortPortrait.mat");
                 changed = portPortraitMaterial != null;
+            }
+            if (roundedMapShader == null)
+            {
+                roundedMapShader = UnityEditor.AssetDatabase.LoadAssetAtPath<Shader>(
+                    "Assets/Shaders/RoundedSprite.shader");
+                changed = changed || roundedMapShader != null;
             }
             if (portWindowFrame == null)
             {

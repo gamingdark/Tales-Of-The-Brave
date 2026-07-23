@@ -7,11 +7,16 @@ namespace TalesOfVoyages.Simulation.Movement
     public sealed class MovementManager
     {
         private readonly WorldGraph world;
+        private readonly Func<string, bool> requiresInteraction;
         private readonly Dictionary<string, Transport> transports = new Dictionary<string, Transport>();
         public event Action<Transport, string, string> VoyageStarted;
         public event Action<Transport, string> Arrived;
 
-        public MovementManager(WorldGraph world) => this.world = world ?? throw new ArgumentNullException(nameof(world));
+        public MovementManager(WorldGraph world, Func<string, bool> requiresInteraction = null)
+        {
+            this.world = world ?? throw new ArgumentNullException(nameof(world));
+            this.requiresInteraction = requiresInteraction ?? (_ => false);
+        }
 
         public void Register(Transport transport)
         {
@@ -70,22 +75,67 @@ namespace TalesOfVoyages.Simulation.Movement
         {
             var state = transport.Travel;
             if (!state.HasActiveDaySegment) return;
-            state.EdgeProgress = state.DayEndEdgeProgress;
-            var reachedEnd = state.ArrivalDayFraction >= 0f;
+
+            foreach (var segment in state.DaySegments)
+            {
+                state.EdgeProgress = segment.EndEdgeProgress;
+                if (segment.ReachesNode) CompleteEdge(transport);
+            }
+
             state.HasActiveDaySegment = false;
             state.ArrivalDayFraction = -1f;
-            if (reachedEnd) CompleteEdge(transport);
+            state.DaySegments.Clear();
         }
 
         private void PrepareDaySegment(Transport transport)
         {
             var state = transport.Travel;
-            var edge = world.GetEdge(state.CurrentEdgeId);
-            var distanceRemaining = edge.Distance * (1f - state.EdgeProgress);
+            state.DaySegments.Clear();
             state.DayStartEdgeProgress = state.EdgeProgress;
-            state.DayEndEdgeProgress = Math.Min(1f, state.EdgeProgress + transport.SpeedPerDay / edge.Distance);
-            state.ArrivalDayFraction = transport.SpeedPerDay >= distanceRemaining
-                ? Math.Max(0f, Math.Min(1f, distanceRemaining / transport.SpeedPerDay))
+            var distanceBudget = transport.SpeedPerDay;
+            var elapsedDayFraction = 0f;
+            var edgeId = state.CurrentEdgeId;
+            var fromNodeId = state.CurrentNodeId;
+            var routeIndex = 0;
+            var edgeProgress = state.EdgeProgress;
+
+            while (edgeId != null && distanceBudget > 0f && routeIndex < state.RemainingRoute.Count)
+            {
+                var edge = world.GetEdge(edgeId);
+                var toNodeId = state.RemainingRoute[routeIndex];
+                var distanceRemaining = edge.Distance * (1f - edgeProgress);
+                var distanceTravelled = Math.Min(distanceBudget, distanceRemaining);
+                var endProgress = Math.Min(1f, edgeProgress + distanceTravelled / edge.Distance);
+                var endDayFraction = Math.Min(
+                    1f,
+                    elapsedDayFraction + distanceTravelled / transport.SpeedPerDay);
+                state.DaySegments.Add(new DayTravelSegment(
+                    edgeId,
+                    fromNodeId,
+                    toNodeId,
+                    edgeProgress,
+                    endProgress,
+                    elapsedDayFraction,
+                    endDayFraction));
+                distanceBudget -= distanceTravelled;
+                elapsedDayFraction = endDayFraction;
+
+                if (endProgress < 1f) break;
+                var finalDestination = routeIndex == state.RemainingRoute.Count - 1;
+                if (finalDestination || requiresInteraction(toNodeId)) break;
+
+                fromNodeId = toNodeId;
+                routeIndex++;
+                var nextNodeId = state.RemainingRoute[routeIndex];
+                edgeId = world.GetConnectingEdge(fromNodeId, nextNodeId)?.Id
+                    ?? throw new InvalidOperationException("Route edge is missing.");
+                edgeProgress = 0f;
+            }
+
+            var finalSegment = state.DaySegments[state.DaySegments.Count - 1];
+            state.DayEndEdgeProgress = finalSegment.EndEdgeProgress;
+            state.ArrivalDayFraction = finalSegment.ReachesNode
+                ? finalSegment.EndDayFraction
                 : -1f;
             state.HasActiveDaySegment = true;
         }

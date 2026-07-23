@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using System.Linq;
 using TalesOfVoyages.Simulation.Core;
 using TalesOfVoyages.Simulation.Movement;
 using TalesOfVoyages.Simulation.Time;
@@ -32,7 +33,7 @@ public sealed class MovementManagerTests
         Assert.That(game.PlayerShip.Travel.GetVisualEdgeProgress(game.Time.DayProgress), Is.Zero);
         game.Time.SetSpeed(TalesOfVoyages.Simulation.Time.TimeSpeed.VeryFast);
         game.Time.Tick(game.Time.SecondsPerDay / 4f);
-        Assert.That(game.PlayerShip.Travel.GetVisualEdgeProgress(game.Time.DayProgress), Is.EqualTo(1f / 3f).Within(0.001f));
+        Assert.That(game.PlayerShip.Travel.GetVisualEdgeProgress(game.Time.DayProgress), Is.EqualTo(0.25f).Within(0.001f));
     }
 
     [Test]
@@ -47,6 +48,77 @@ public sealed class MovementManagerTests
 
         Assert.That(game.PlayerShip.Travel.HasPlannedAction, Is.False);
         Assert.That(game.PlayerShip.Travel.IsTravelling, Is.False);
+    }
+
+    [Test]
+    public void IntermediateSeaNodeIsPassedWithoutStoppingOrInteraction()
+    {
+        var definition = TalesOfVoyages.Simulation.Rulesets.MvpWorldDefinition.CreateDefault();
+        definition.Entities
+            .Single(entity => entity.Behaviors.PlayerControlledBehavior != null)
+            .Behaviors.TransportBehavior.SpeedPerDay = 50f;
+        var game = MvpGameFactory.Create(definition);
+        game.Movement.PlanDestination(game.PlayerShip.Id, "node_riga");
+        game.Time.AdvanceDay();
+
+        Assert.That(game.PlayerShip.Travel.NextNodeId, Is.EqualTo("node_west_courland"));
+
+        game.Tick(game.Time.SecondsPerDay * 0.75f);
+
+        Assert.That(
+            game.PlayerShip.Travel.GetNextNodeId(game.Time.DayProgress),
+            Is.EqualTo("node_irbe_strait"));
+        Assert.That(game.PlayerShip.Travel.IsTravelling, Is.True);
+        Assert.That(game.GetPendingInteractionEntity(), Is.Null);
+        Assert.That(game.Time.DayProgress, Is.EqualTo(0.75f));
+
+        game.Tick(game.Time.SecondsPerDay * 0.25f);
+
+        Assert.That(game.PlayerShip.Travel.CurrentNodeId, Is.EqualTo("node_irbe_strait"));
+        Assert.That(game.PlayerShip.Travel.NextNodeId, Is.EqualTo("node_riga"));
+        Assert.That(game.Time.DayProgress, Is.Zero);
+    }
+
+    [Test]
+    public void SeaNodeCanBeFinalDestinationAndNewVoyageWaitsForFollowingDay()
+    {
+        var game = MvpGameFactory.Create();
+        game.Movement.PlanDestination(game.PlayerShip.Id, "node_west_courland");
+        game.Time.AdvanceDay();
+
+        game.Tick(game.Time.SecondsPerDay);
+
+        Assert.That(game.PlayerShip.Travel.CurrentNodeId, Is.EqualTo("node_west_courland"));
+        Assert.That(game.PlayerShip.Travel.IsTravelling, Is.False);
+        Assert.That(game.GetPendingInteractionEntity(), Is.Null);
+
+        game.Movement.PlanDestination(game.PlayerShip.Id, "node_irbe_strait");
+        game.Tick(game.Time.SecondsPerDay * 0.5f);
+
+        Assert.That(game.PlayerShip.Travel.HasPlannedAction, Is.True);
+        Assert.That(game.PlayerShip.Travel.IsTravelling, Is.False);
+
+        game.Time.AdvanceDay();
+
+        Assert.That(game.PlayerShip.Travel.HasPlannedAction, Is.False);
+        Assert.That(game.PlayerShip.Travel.IsTravelling, Is.True);
+        Assert.That(game.PlayerShip.Travel.NextNodeId, Is.EqualTo("node_irbe_strait"));
+    }
+
+    [Test]
+    public void SkipToNextDayStartsPlannedVoyageImmediately()
+    {
+        var game = MvpGameFactory.Create();
+        game.Time.Tick(game.Time.SecondsPerDay * 0.5f);
+        var initialDay = game.Time.CurrentDate.TotalDays;
+        game.Movement.PlanDestination(game.PlayerShip.Id, "node_riga");
+
+        game.Time.SkipToNextDayStart();
+
+        Assert.That(game.Time.CurrentDate.TotalDays, Is.EqualTo(initialDay + 1));
+        Assert.That(game.Time.DayProgress, Is.Zero);
+        Assert.That(game.PlayerShip.Travel.HasPlannedAction, Is.False);
+        Assert.That(game.PlayerShip.Travel.IsTravelling, Is.True);
     }
 
     [Test]

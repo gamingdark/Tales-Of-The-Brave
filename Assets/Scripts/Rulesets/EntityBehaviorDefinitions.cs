@@ -6,17 +6,21 @@ namespace TalesOfVoyages.Simulation.Rulesets
     public sealed class EntityBehaviorsDefinition
     {
         public PlayerControlledBehaviorDefinition PlayerControlledBehavior;
+        public TransportBehaviorDefinition TransportBehavior;
         public DrawableBehaviorDefinition DrawableBehavior;
         public WorldEntityBehaviorDefinition WorldEntityBehavior;
         public PortBehaviorDefinition PortBehavior;
     }
 
     [Serializable]
-    public sealed class PlayerControlledBehaviorDefinition
+    public sealed class PlayerControlledBehaviorDefinition { }
+
+    [Serializable]
+    public sealed class TransportBehaviorDefinition
     {
         public float SpeedPerDay;
-        public PlayerControlledBehaviorDefinition() { }
-        public PlayerControlledBehaviorDefinition(float speedPerDay) => SpeedPerDay = speedPerDay;
+        public TransportBehaviorDefinition() { }
+        public TransportBehaviorDefinition(float speedPerDay) => SpeedPerDay = speedPerDay;
     }
 
     [Serializable]

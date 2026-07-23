@@ -12,6 +12,8 @@ namespace TalesOfVoyages.Simulation.Rulesets
         public List<WorldEdgeDefinition> Edges = new List<WorldEdgeDefinition>();
         public List<EntityDefinition> Entities = new List<EntityDefinition>();
         public TimeSystemDefinition TimeSystem = new TimeSystemDefinition();
+        public string MapBackgroundSprite = "map";
+        public string SceneBackgroundSprite = "wooden-background";
 
         public static MvpWorldDefinition CreateDefault()
         {
@@ -21,41 +23,36 @@ namespace TalesOfVoyages.Simulation.Rulesets
                 {
                     new WorldNodeDefinition("node_klaipeda", "Klaipėda", WorldNodeType.Port, 0.62f, 0.2f),
                     new WorldNodeDefinition("node_riga", "Riga", WorldNodeType.Port, 0.73f, 0.33f),
-                    new WorldNodeDefinition("node_helsinki", "Helsinki", WorldNodeType.Port, 0.70f, 0.63f)
+                    new WorldNodeDefinition("node_helsinki", "Helsinki", WorldNodeType.Port, 0.70f, 0.63f),
+                    new WorldNodeDefinition("node_irbe_strait", "Irbe Strait", WorldNodeType.Sea, 0.63f, 0.39f),
+                    new WorldNodeDefinition("node_west_courland", "West of Courland", WorldNodeType.Sea, 0.59f, 0.32f),
+                    new WorldNodeDefinition("node_west_saaremaa", "West of Saaremaa", WorldNodeType.Sea, 0.61f, 0.47f)
                 },
                 Edges = new List<WorldEdgeDefinition>
                 {
-                    new WorldEdgeDefinition(
-                        "route_klaipeda_riga", "node_klaipeda", "node_riga", 75f,
+                    new WorldEdgeDefinition("route_klaipeda_courland", "node_klaipeda", "node_west_courland", 25f,
                         new[]
                         {
                             new RouteMapPointDefinition(0.59f, 0.21f),
-                            new RouteMapPointDefinition(0.59f, 0.32f),
-                            new RouteMapPointDefinition(0.63f, 0.39f),
+                        }),
+
+                    new WorldEdgeDefinition("route_courland_irbe", "node_west_courland", "node_irbe_strait", 25f),
+
+                    new WorldEdgeDefinition("route_irbe_riga", "node_irbe_strait", "node_riga", 25f,
+                        new[]
+                        {
                             new RouteMapPointDefinition(0.68f, 0.42f),
                             new RouteMapPointDefinition(0.73f, 0.34f)
                         }),
-                    new WorldEdgeDefinition(
-                        "route_riga_helsinki", "node_riga", "node_helsinki", 90f,
+                    new WorldEdgeDefinition("route_saaremaa_helsinki", "node_west_saaremaa", "node_helsinki", 40f,
                         new[]
                         {
-                            new RouteMapPointDefinition(0.73f, 0.34f),
-                            new RouteMapPointDefinition(0.68f, 0.42f),
-                            new RouteMapPointDefinition(0.63f, 0.39f),
-                            new RouteMapPointDefinition(0.61f, 0.47f),
                             new RouteMapPointDefinition(0.64f, 0.56f),
                             new RouteMapPointDefinition(0.69f, 0.59f)
                         }),
-                    new WorldEdgeDefinition(
-                        "route_helsinki_klaipeda", "node_helsinki", "node_klaipeda", 110f,
-                        new[]
-                        {
-                            new RouteMapPointDefinition(0.69f, 0.59f),
-                            new RouteMapPointDefinition(0.64f, 0.56f),
-                            new RouteMapPointDefinition(0.61f, 0.47f),
-                            new RouteMapPointDefinition(0.59f, 0.32f),
-                            new RouteMapPointDefinition(0.59f, 0.21f)
-                        })
+
+                    new WorldEdgeDefinition("route_courland_saaremaa", "node_west_courland", "node_west_saaremaa", 40f),
+                    new WorldEdgeDefinition("route_irbe_saaremaa", "node_irbe_strait", "node_west_saaremaa", 25f),
                 },
                 Entities = new List<EntityDefinition>
                 {

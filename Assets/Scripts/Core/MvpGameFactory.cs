@@ -51,7 +51,10 @@ namespace TalesOfVoyages.Simulation.Core
                 entities.Add(CreateEntity(entityDefinition));
 
             var playerEntity = entities.Single(entity => entity.HasBehavior<PlayerControlledBehavior>());
-            var movement = new MovementManager(world);
+            var movement = new MovementManager(world, nodeId => entities.Any(entity =>
+                entity.Actions.Count > 0 &&
+                entity.HasBehavior<WorldEntityBehavior>() &&
+                entity.GetBehavior<WorldEntityBehavior>().StartingNodeId == nodeId));
             movement.Register(new Transport(playerEntity));
 
             var chronicler = new Chronicler();
@@ -77,7 +80,9 @@ namespace TalesOfVoyages.Simulation.Core
             var entity = new Entity(definition.Id, definition.DisplayName);
             var behaviors = definition.Behaviors;
             if (behaviors.PlayerControlledBehavior != null)
-                entity.AddBehavior(new PlayerControlledBehavior(behaviors.PlayerControlledBehavior.SpeedPerDay));
+                entity.AddBehavior(new PlayerControlledBehavior());
+            if (behaviors.TransportBehavior != null)
+                entity.AddBehavior(new TransportBehavior(behaviors.TransportBehavior.SpeedPerDay));
             if (behaviors.DrawableBehavior != null)
                 entity.AddBehavior(new DrawableBehavior(behaviors.DrawableBehavior.MapIconSprite));
             if (behaviors.WorldEntityBehavior != null)

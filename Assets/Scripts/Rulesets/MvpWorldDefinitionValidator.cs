@@ -13,6 +13,16 @@ namespace TalesOfVoyages.Simulation.Rulesets
             if (definition.Nodes == null) throw new InvalidOperationException("World node definitions are required.");
             if (definition.Edges == null) throw new InvalidOperationException("World edge definitions are required.");
             if (definition.Entities == null) throw new InvalidOperationException("Entity definitions are required.");
+            if (string.IsNullOrWhiteSpace(definition.MapBackgroundSprite))
+                throw new InvalidOperationException("A map background sprite is required.");
+            if (spriteLookup != null && !spriteLookup.ContainsSprite(definition.MapBackgroundSprite))
+                throw new InvalidOperationException(
+                    $"World definition references missing map background sprite '{definition.MapBackgroundSprite}'.");
+            if (string.IsNullOrWhiteSpace(definition.SceneBackgroundSprite))
+                throw new InvalidOperationException("A scene background sprite is required.");
+            if (spriteLookup != null && !spriteLookup.ContainsSprite(definition.SceneBackgroundSprite))
+                throw new InvalidOperationException(
+                    $"World definition references missing scene background sprite '{definition.SceneBackgroundSprite}'.");
             ValidateTimeSystem(definition.TimeSystem);
 
             var allIds = new HashSet<string>(StringComparer.Ordinal);
@@ -51,9 +61,12 @@ namespace TalesOfVoyages.Simulation.Rulesets
                 if (behaviors.PlayerControlledBehavior != null)
                 {
                     playerControlledCount++;
-                    if (behaviors.PlayerControlledBehavior.SpeedPerDay <= 0f)
-                        throw new InvalidOperationException($"Player-controlled entity '{entity.Id}' must have positive speed.");
                 }
+                if (behaviors.TransportBehavior != null && behaviors.TransportBehavior.SpeedPerDay <= 0f)
+                    throw new InvalidOperationException($"Transport entity '{entity.Id}' must have positive speed.");
+                if (behaviors.PlayerControlledBehavior != null && behaviors.TransportBehavior == null)
+                    throw new InvalidOperationException(
+                        $"Player-controlled entity '{entity.Id}' requires a transport behavior.");
                 if (behaviors.WorldEntityBehavior == null)
                     throw new InvalidOperationException($"Map entity '{entity.Id}' requires a world entity behavior.");
                 if (!nodeIds.Contains(behaviors.WorldEntityBehavior.StartingNodeId))

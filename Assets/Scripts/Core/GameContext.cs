@@ -44,26 +44,29 @@ namespace TalesOfVoyages.Simulation.Core
         {
             var travel = PlayerShip.Travel;
             if (!travel.IsApproachingNode(Time.DayProgress)) return null;
-            return Entities.SingleOrDefault(entity =>
+            return GetInteractionEntityAtNode(travel.GetReachedNodeId(Time.DayProgress));
+        }
+
+        private Entity GetInteractionEntityAtNode(string nodeId)
+        {
+            if (nodeId == null) return null;
+            return Entities.FirstOrDefault(entity =>
                 entity.Actions.Count > 0 &&
                 entity.HasBehavior<WorldEntityBehavior>() &&
-                entity.GetBehavior<WorldEntityBehavior>().StartingNodeId == travel.DestinationNodeId);
+                entity.GetBehavior<WorldEntityBehavior>().StartingNodeId == nodeId);
         }
 
         public void Tick(float realSeconds)
         {
             var travel = PlayerShip.Travel;
-            if (travel.IsTravelling && travel.ArrivalDayFraction >= 0f)
+            var finalSegment = travel.DaySegments.LastOrDefault();
+            if (travel.IsTravelling &&
+                finalSegment != null &&
+                finalSegment.ReachesNode &&
+                GetInteractionEntityAtNode(finalSegment.ToNodeId) != null)
             {
-                var destination = Entities.SingleOrDefault(entity =>
-                    entity.Actions.Count > 0 &&
-                    entity.HasBehavior<WorldEntityBehavior>() &&
-                    entity.GetBehavior<WorldEntityBehavior>().StartingNodeId == travel.DestinationNodeId);
-                if (destination != null)
-                {
-                    Time.TickUntilDayProgress(realSeconds, 1f);
-                    return;
-                }
+                Time.TickUntilDayProgress(realSeconds, 1f);
+                return;
             }
             Time.Tick(realSeconds);
         }

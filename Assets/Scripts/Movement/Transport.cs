@@ -8,7 +8,7 @@ namespace TalesOfVoyages.Simulation.Movement
         public string Id { get; }
         public string DisplayName { get; }
         private readonly Entity entity;
-        public float SpeedPerDay => entity.GetBehavior<PlayerControlledBehavior>().SpeedPerDay;
+        public float SpeedPerDay => entity.GetBehavior<TransportBehavior>().SpeedPerDay;
         public TravelState Travel { get; }
         public string MapIconSprite => entity.GetBehavior<DrawableBehavior>().MapIconSprite;
         public Entity Entity => entity;
@@ -33,7 +33,8 @@ namespace TalesOfVoyages.Simulation.Movement
             string id, string displayName, float speedPerDay, string startingNodeId, string mapIconSprite)
         {
             var entity = new Entity(id, displayName);
-            entity.AddBehavior(new PlayerControlledBehavior(speedPerDay));
+            entity.AddBehavior(new PlayerControlledBehavior());
+            entity.AddBehavior(new TransportBehavior(speedPerDay));
             entity.AddBehavior(new DrawableBehavior(mapIconSprite));
             entity.AddBehavior(new WorldEntityBehavior(startingNodeId));
             return entity;

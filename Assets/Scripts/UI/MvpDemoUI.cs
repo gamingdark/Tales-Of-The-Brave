@@ -5,6 +5,7 @@ using TalesOfVoyages.Simulation.Time;
 using TalesOfVoyages.Simulation.World;
 using TalesOfVoyages.Graphics;
 using TalesOfVoyages.Simulation.Entities;
+using System.Linq;
 
 namespace TalesOfVoyages.Unity.UI
 {
@@ -16,27 +17,46 @@ namespace TalesOfVoyages.Unity.UI
         private GUIStyle logStyle;
         private Transform mapBottomLeft;
         private Transform mapTopRight;
+        private Transform leftMenuBottomLeft;
+        private Transform leftMenuTopRight;
+        private Transform bottomMenuBottomLeft;
+        private Transform bottomMenuTopRight;
         private Camera mapCamera;
         private ExternalGraphicsCatalog graphics;
         private Sprite portWindowFrame;
         private GUIStyle encounterTitleStyle;
         private Material circularImageMaterial;
-        private const float PortPortraitInsetScale = 0.9f;
+        private MapEntitySceneController mapController;
+        private GUIStyle menuPanelStyle;
+        private GUIStyle mapPanelStyle;
+        private Texture2D menuPanelTexture;
+        private Texture2D mapPanelTexture;
+        private const float PortPortraitInsetScale = 1.0f;
 
         public void Initialize(
             GameContext gameContext,
-            Transform bottomLeft,
-            Transform topRight,
+            Transform mapBoundsBottomLeft,
+            Transform mapBoundsTopRight,
+            Transform leftMenuBoundsBottomLeft,
+            Transform leftMenuBoundsTopRight,
+            Transform bottomMenuBoundsBottomLeft,
+            Transform bottomMenuBoundsTopRight,
             ExternalGraphicsCatalog graphicsCatalog,
             Sprite windowFrame,
-            Material portraitMaterial)
+            Material portraitMaterial,
+            MapEntitySceneController entitySceneController)
         {
             context = gameContext ?? throw new ArgumentNullException(nameof(gameContext));
-            mapBottomLeft = bottomLeft;
-            mapTopRight = topRight;
+            mapBottomLeft = mapBoundsBottomLeft;
+            mapTopRight = mapBoundsTopRight;
+            leftMenuBottomLeft = leftMenuBoundsBottomLeft;
+            leftMenuTopRight = leftMenuBoundsTopRight;
+            bottomMenuBottomLeft = bottomMenuBoundsBottomLeft;
+            bottomMenuTopRight = bottomMenuBoundsTopRight;
             graphics = graphicsCatalog ?? throw new ArgumentNullException(nameof(graphicsCatalog));
             portWindowFrame = windowFrame;
             circularImageMaterial = portraitMaterial;
+            mapController = entitySceneController;
         }
 
         private void EnsureStyles()
@@ -58,6 +78,17 @@ namespace TalesOfVoyages.Unity.UI
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
+
+            menuPanelTexture = CreateRoundedPanelTexture(
+                "Rounded Menu Panel",
+                new Color(0.055f, 0.07f, 0.1f, 0.88f),
+                new Color(0.015f, 0.015f, 0.015f, 0.95f));
+            mapPanelTexture = CreateRoundedPanelTexture(
+                "Rounded Map Border",
+                Color.clear,
+                new Color(0.015f, 0.015f, 0.015f, 0.95f));
+            menuPanelStyle = CreateRoundedPanelStyle(menuPanelTexture);
+            mapPanelStyle = CreateRoundedPanelStyle(mapPanelTexture);
         }
 
         private void OnGUI()
@@ -65,9 +96,18 @@ namespace TalesOfVoyages.Unity.UI
             if (context == null) return;
             EnsureStyles();
             var margin = 20f;
-            var controls = new Rect(margin, margin, 320f, Screen.height - margin * 2f);
+            var controls = GetScreenRect(
+                leftMenuBottomLeft,
+                leftMenuTopRight,
+                new Rect(margin, margin, 320f, Screen.height - margin * 2f));
             var map = GetMapRect(controls, margin);
-            GUI.Box(controls, GUIContent.none);
+            var bottomMenu = GetScreenRect(
+                bottomMenuBottomLeft,
+                bottomMenuTopRight,
+                new Rect(map.x, Mathf.Max(map.y, Screen.height - 160f), map.width, 160f));
+            GUI.Box(bottomMenu, GUIContent.none, menuPanelStyle);
+            DrawBottomPanel(bottomMenu);
+            GUI.Box(controls, GUIContent.none, menuPanelStyle);
             GUILayout.BeginArea(new Rect(controls.x + 16f, controls.y + 12f, controls.width - 32f, controls.height - 24f));
             GUILayout.Label("Tales of the Brave", titleStyle);
             GUILayout.Label($"{context.Time.CurrentDate}  {context.Time.GetFormattedTime()}");
@@ -89,8 +129,140 @@ namespace TalesOfVoyages.Unity.UI
                 GUILayout.Space(4f);
             }
             GUILayout.EndArea();
+            GUI.Box(map, GUIContent.none, mapPanelStyle);
             DrawMap(map);
             DrawEnteringPortOverlay(map);
+        }
+
+        private static GUIStyle CreateRoundedPanelStyle(Texture2D texture)
+        {
+            var style = new GUIStyle { normal = { background = texture } };
+            style.border = new RectOffset(10, 10, 10, 10);
+            return style;
+        }
+
+        private static Texture2D CreateRoundedPanelTexture(string textureName, Color fill, Color border)
+        {
+            const int size = 32;
+            const int radius = 9;
+            const int borderWidth = 2;
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                name = textureName,
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+            for (var y = 0; y < size; y++)
+            for (var x = 0; x < size; x++)
+            {
+                var outer = IsInsideRoundedRect(x + 0.5f, y + 0.5f, size, radius);
+                var inner = IsInsideRoundedRect(
+                    x + 0.5f - borderWidth,
+                    y + 0.5f - borderWidth,
+                    size - borderWidth * 2,
+                    radius - borderWidth);
+                texture.SetPixel(x, y, !outer ? Color.clear : inner ? fill : border);
+            }
+            texture.Apply();
+            return texture;
+        }
+
+        private static bool IsInsideRoundedRect(float x, float y, int size, float radius)
+        {
+            if (x < 0f || y < 0f || x > size || y > size) return false;
+            var nearestX = Mathf.Clamp(x, radius, size - radius);
+            var nearestY = Mathf.Clamp(y, radius, size - radius);
+            var deltaX = x - nearestX;
+            var deltaY = y - nearestY;
+            return deltaX * deltaX + deltaY * deltaY <= radius * radius;
+        }
+
+        private void DrawBottomPanel(Rect panel)
+        {
+            const float padding = 16f;
+            const float columnGap = 20f;
+            var content = new Rect(
+                panel.x + padding,
+                panel.y + padding,
+                Mathf.Max(0f, panel.width - padding * 2f),
+                Mathf.Max(0f, panel.height - padding * 2f));
+            var columnWidth = Mathf.Max(0f, (content.width - columnGap) * 0.5f);
+
+            GUILayout.BeginArea(new Rect(content.x, content.y, columnWidth, content.height));
+            var ship = context.PlayerShip;
+            GUILayout.Label(ship.DisplayName, titleStyle);
+            var travel = ship.Travel;
+            var locationText = travel.IsTravelling
+                ? $"Travelling to {context.World.GetNode(travel.GetNextNodeId(context.Time.DayProgress)).DisplayName}"
+                : $"At {context.World.GetNode(travel.CurrentNodeId).DisplayName}";
+            GUILayout.Label(locationText);
+            GUILayout.Label($"Speed per day: {ship.SpeedPerDay:0.##}");
+            var estimatedDays = GetEstimatedTravelDays(ship);
+            if (estimatedDays.HasValue)
+                GUILayout.Label($"Estimated duration: {estimatedDays.Value} {(estimatedDays.Value == 1 ? "day" : "days")}");
+            GUILayout.EndArea();
+
+            GUILayout.BeginArea(new Rect(
+                content.x + columnWidth + columnGap,
+                content.y,
+                columnWidth,
+                content.height));
+            if (mapController != null && !string.IsNullOrWhiteSpace(mapController.SelectedNodeId))
+            {
+                var selectedNode = context.World.GetNode(mapController.SelectedNodeId);
+                GUILayout.Label(selectedNode.DisplayName, titleStyle);
+                var isPort = context.Entities.Any(entity =>
+                    entity.HasBehavior<PortBehavior>() &&
+                    entity.HasBehavior<WorldEntityBehavior>() &&
+                    entity.GetBehavior<WorldEntityBehavior>().StartingNodeId == selectedNode.Id);
+                if (isPort) GUILayout.Label("Port");
+            }
+            GUILayout.EndArea();
+        }
+
+        private int? GetEstimatedTravelDays(TalesOfVoyages.Simulation.Movement.Transport ship)
+        {
+            var travel = ship.Travel;
+            float distance;
+            if (travel.IsTravelling)
+            {
+                distance = GetRemainingTravelDistance(travel);
+            }
+            else
+            {
+                var destinationNodeId = travel.HasPlannedAction
+                    ? travel.PlannedDestinationNodeId
+                    : mapController?.SelectedNodeId;
+                if (string.IsNullOrWhiteSpace(destinationNodeId) ||
+                    destinationNodeId == travel.CurrentNodeId)
+                    return null;
+                distance = context.World.GetRouteDistance(
+                    context.World.FindRoute(travel.CurrentNodeId, destinationNodeId));
+            }
+            return Mathf.CeilToInt(distance / ship.SpeedPerDay);
+        }
+
+        private float GetRemainingTravelDistance(
+            TalesOfVoyages.Simulation.Movement.TravelState travel)
+        {
+            var visualSegment = travel.GetVisualSegment(context.Time.DayProgress);
+            var currentEdgeId = visualSegment?.EdgeId ?? travel.CurrentEdgeId;
+            if (currentEdgeId == null) return 0f;
+
+            var currentProgress = travel.GetVisualEdgeProgress(context.Time.DayProgress);
+            var distance = context.World.GetEdge(currentEdgeId).Distance * (1f - currentProgress);
+            var nextNodeId = visualSegment?.ToNodeId ?? travel.NextNodeId;
+            var nextNodeIndex = travel.RemainingRoute.IndexOf(nextNodeId);
+            if (nextNodeIndex < 0) return distance;
+
+            for (var i = nextNodeIndex + 1; i < travel.RemainingRoute.Count; i++)
+            {
+                var edge = context.World.GetConnectingEdge(
+                    travel.RemainingRoute[i - 1],
+                    travel.RemainingRoute[i]);
+                if (edge != null) distance += edge.Distance;
+            }
+            return distance;
         }
 
         private void SpeedButton(string label, TimeSpeed speed)
@@ -108,19 +280,37 @@ namespace TalesOfVoyages.Unity.UI
             if (!ship.Travel.IsTravelling)
             {
                 var location = context.World.GetNode(ship.Travel.CurrentNodeId);
-                GUILayout.Label($"In port: {context.GetPortAtNode(location.Id).DisplayName}");
+                var locationPort = context.Entities.SingleOrDefault(entity =>
+                    entity.HasBehavior<PortBehavior>() &&
+                    entity.HasBehavior<WorldEntityBehavior>() &&
+                    entity.GetBehavior<WorldEntityBehavior>().StartingNodeId == location.Id);
+                GUILayout.Label(locationPort == null
+                    ? $"At {location.DisplayName}"
+                    : $"In port: {locationPort.DisplayName}");
                 if (ship.Travel.HasPlannedAction)
                 {
-                    var plannedPort = context.GetPortAtNode(ship.Travel.PlannedDestinationNodeId);
-                    GUILayout.Label($"Planned for tomorrow: sail to {plannedPort.DisplayName}");
+                    var plannedNode = context.World.GetNode(ship.Travel.PlannedDestinationNodeId);
+                    GUILayout.Label($"Planned for tomorrow: sail to {plannedNode.DisplayName}");
                     if (GUILayout.Button("Cancel planned voyage")) context.Movement.CancelPlannedDestination(ship.Id);
+                    if (GUILayout.Button("Forward to departure")) context.Time.SkipToNextDayStart();
                 }
                 else
                 {
-                    GUILayout.Label("Available destinations:");
-                    foreach (var destination in context.World.GetNeighbors(location.Id))
-                        if (GUILayout.Button($"Plan voyage to {context.GetPortAtNode(destination.Id).DisplayName}"))
-                            context.Movement.PlanDestination(ship.Id, destination.Id);
+                    var selectedNodeId = mapController == null ? null : mapController.SelectedNodeId;
+                    if (string.IsNullOrWhiteSpace(selectedNodeId))
+                    {
+                        GUILayout.Label("Select a map node to plan a voyage.");
+                    }
+                    else if (selectedNodeId == location.Id)
+                    {
+                        GUILayout.Label("The ship is already at the selected node.");
+                    }
+                    else
+                    {
+                        var selectedNode = context.World.GetNode(selectedNodeId);
+                        if (GUILayout.Button($"Set sail to {selectedNode.DisplayName}"))
+                            context.Movement.PlanDestination(ship.Id, selectedNode.Id);
+                    }
                 }
             }
             else
@@ -165,12 +355,23 @@ namespace TalesOfVoyages.Unity.UI
 
         private Rect GetMapRect(Rect controls, float margin)
         {
-            if (mapCamera == null) mapCamera = Camera.main;
-            if (mapBottomLeft == null || mapTopRight == null || mapCamera == null)
-                return new Rect(controls.xMax + margin, margin, Math.Max(300f, Screen.width - controls.width - margin * 3f), Screen.height - margin * 2f);
+            return GetScreenRect(
+                mapBottomLeft,
+                mapTopRight,
+                new Rect(
+                    controls.xMax + margin,
+                    margin,
+                    Math.Max(300f, Screen.width - controls.width - margin * 3f),
+                    Screen.height - margin * 2f));
+        }
 
-            var a = mapCamera.WorldToScreenPoint(mapBottomLeft.position);
-            var b = mapCamera.WorldToScreenPoint(mapTopRight.position);
+        private Rect GetScreenRect(Transform bottomLeft, Transform topRight, Rect fallback)
+        {
+            if (mapCamera == null) mapCamera = Camera.main;
+            if (bottomLeft == null || topRight == null || mapCamera == null) return fallback;
+
+            var a = mapCamera.WorldToScreenPoint(bottomLeft.position);
+            var b = mapCamera.WorldToScreenPoint(topRight.position);
             var left = Mathf.Min(a.x, b.x);
             var right = Mathf.Max(a.x, b.x);
             var bottom = Mathf.Min(a.y, b.y);
@@ -266,6 +467,12 @@ namespace TalesOfVoyages.Unity.UI
                 rect.center.y - height * 0.5f,
                 width,
                 height);
+        }
+
+        private void OnDestroy()
+        {
+            if (menuPanelTexture != null) Destroy(menuPanelTexture);
+            if (mapPanelTexture != null) Destroy(mapPanelTexture);
         }
 
     }

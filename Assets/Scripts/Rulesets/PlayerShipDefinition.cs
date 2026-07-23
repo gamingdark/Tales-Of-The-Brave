@@ -15,7 +15,8 @@ namespace TalesOfVoyages.Simulation.Rulesets
             string mapIconSprite = null)
             : base(id, displayName, new EntityBehaviorsDefinition
             {
-                PlayerControlledBehavior = new PlayerControlledBehaviorDefinition(speedPerDay),
+                PlayerControlledBehavior = new PlayerControlledBehaviorDefinition(),
+                TransportBehavior = new TransportBehaviorDefinition(speedPerDay),
                 DrawableBehavior = new DrawableBehaviorDefinition(mapIconSprite),
                 WorldEntityBehavior = new WorldEntityBehaviorDefinition(startingNodeId)
             })

@@ -20,9 +20,12 @@ public sealed class MvpWorldDefinitionTests
         AssertNode(game.World.GetNode("node_klaipeda"), "Klaipėda", 0.62f, 0.2f);
         AssertNode(game.World.GetNode("node_riga"), "Riga", 0.73f, 0.33f);
         AssertNode(game.World.GetNode("node_helsinki"), "Helsinki", 0.70f, 0.63f);
-        Assert.That(game.World.GetEdge("route_klaipeda_riga").Distance, Is.EqualTo(75f));
-        Assert.That(game.World.GetEdge("route_riga_helsinki").Distance, Is.EqualTo(90f));
-        Assert.That(game.World.GetEdge("route_helsinki_klaipeda").Distance, Is.EqualTo(110f));
+        Assert.That(game.World.GetEdge("route_klaipeda_courland").Distance, Is.EqualTo(25f));
+        Assert.That(game.World.GetEdge("route_courland_irbe").Distance, Is.EqualTo(25f));
+        Assert.That(game.World.GetEdge("route_irbe_riga").Distance, Is.EqualTo(25f));
+        Assert.That(game.World.GetEdge("route_courland_saaremaa").Distance, Is.EqualTo(55f));
+        Assert.That(game.World.GetEdge("route_irbe_saaremaa").Distance, Is.EqualTo(25f));
+        Assert.That(game.World.GetEdge("route_saaremaa_helsinki").Distance, Is.EqualTo(40f));
 
         AssertPort(game, "port_klaipeda", "node_klaipeda", "icons.4", "img-klaipeda");
         AssertPort(game, "port_riga", "node_riga", "icons.3", "img-riga");
@@ -30,6 +33,8 @@ public sealed class MvpWorldDefinitionTests
         Assert.That(game.PlayerShip.Id, Is.EqualTo("player_ship"));
         Assert.That(game.PlayerShip.DisplayName, Is.EqualTo("The Unsinkable MVP"));
         Assert.That(game.PlayerShip.SpeedPerDay, Is.EqualTo(25f));
+        Assert.That(game.PlayerShip.Entity.HasBehavior<PlayerControlledBehavior>(), Is.True);
+        Assert.That(game.PlayerShip.Entity.GetBehavior<TransportBehavior>().SpeedPerDay, Is.EqualTo(25f));
         Assert.That(game.PlayerShip.Travel.CurrentNodeId, Is.EqualTo("node_klaipeda"));
         Assert.That(game.PlayerShip.Entity.GetBehavior<DrawableBehavior>().MapIconSprite, Is.EqualTo("icons.8"));
         Assert.That(game.Time.SecondsPerDay, Is.EqualTo(7.5f));
@@ -38,6 +43,8 @@ public sealed class MvpWorldDefinitionTests
         Assert.That(game.Time.DayStartHourOffset, Is.EqualTo(7));
         Assert.That(game.Time.AllowedSpeeds,
             Is.EqualTo(new[] { TimeSpeed.Normal, TimeSpeed.Fast, TimeSpeed.VeryFast }));
+        Assert.That(definition.MapBackgroundSprite, Is.EqualTo("map"));
+        Assert.That(definition.SceneBackgroundSprite, Is.EqualTo("wooden-background"));
     }
 
     [Test]
@@ -96,12 +103,52 @@ public sealed class MvpWorldDefinitionTests
     }
 
     [Test]
+    public void ValidationRejectsPlayerControlledEntityWithoutTransportBehavior()
+    {
+        var definition = CreateMinimalDefinition();
+        definition.Entities[0].Behaviors.TransportBehavior = null;
+
+        AssertValidationFailure(definition, "requires a transport behavior");
+    }
+
+    [Test]
+    public void ValidationRejectsInvalidTransportSpeed()
+    {
+        var definition = CreateMinimalDefinition();
+        definition.Entities[0].Behaviors.TransportBehavior.SpeedPerDay = 0f;
+
+        AssertValidationFailure(definition, "positive speed");
+    }
+
+    [Test]
     public void GraphicsValidationAcceptsAllDefaultSpriteNames()
     {
         var sprites = new SpriteNames(
             "icons.3", "icons.4", "icons.5", "icons.8",
-            "img-klaipeda", "img-riga", "img-helsinki");
+            "img-klaipeda", "img-riga", "img-helsinki", "map", "wooden-background");
         Assert.DoesNotThrow(() => MvpWorldDefinitionValidator.Validate(MvpWorldDefinition.CreateDefault(), sprites));
+    }
+
+    [Test]
+    public void GraphicsValidationRejectsMissingMapBackgroundSprite()
+    {
+        var definition = CreateMinimalDefinition();
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            MvpWorldDefinitionValidator.Validate(
+                definition, new SpriteNames("icons.ship", "icons.port", "img-port", "wooden-background")));
+
+        StringAssert.Contains("map", exception.Message);
+    }
+
+    [Test]
+    public void GraphicsValidationRejectsMissingSceneBackgroundSprite()
+    {
+        var definition = CreateMinimalDefinition();
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            MvpWorldDefinitionValidator.Validate(
+                definition, new SpriteNames("map", "icons.ship", "icons.port", "img-port")));
+
+        StringAssert.Contains("wooden-background", exception.Message);
     }
 
     [Test]
@@ -109,7 +156,8 @@ public sealed class MvpWorldDefinitionTests
     {
         var definition = CreateMinimalDefinition();
         var exception = Assert.Throws<InvalidOperationException>(() =>
-            MvpWorldDefinitionValidator.Validate(definition, new SpriteNames("icons.port")));
+            MvpWorldDefinitionValidator.Validate(
+                definition, new SpriteNames("map", "wooden-background", "icons.port")));
 
         StringAssert.Contains("player_ship", exception.Message);
         StringAssert.Contains("icons.ship", exception.Message);
@@ -121,7 +169,7 @@ public sealed class MvpWorldDefinitionTests
         var definition = CreateMinimalDefinition();
         var exception = Assert.Throws<InvalidOperationException>(() =>
             MvpWorldDefinitionValidator.Validate(
-                definition, new SpriteNames("icons.ship", "icons.port")));
+                definition, new SpriteNames("map", "wooden-background", "icons.ship", "icons.port")));
 
         StringAssert.Contains("port_b", exception.Message);
         StringAssert.Contains("img-port", exception.Message);
@@ -133,7 +181,7 @@ public sealed class MvpWorldDefinitionTests
         var game = MvpGameFactory.Create();
         game.Movement.PlanDestination(game.PlayerShip.Id, "node_helsinki");
         game.Time.AdvanceDays(5);
-        game.Time.Tick(game.Time.SecondsPerDay * 0.5f);
+        game.Time.Tick(game.Time.SecondsPerDay * 0.9f);
 
         var port = game.GetPendingInteractionEntity();
 

@@ -29,19 +29,50 @@ namespace TalesOfVoyages.Simulation.World
         public IEnumerable<WorldNode> GetNeighbors(string nodeId) => edges.Values.Where(e => e.Connects(nodeId)).Select(e => GetNode(e.Other(nodeId)));
         public WorldEdge GetConnectingEdge(string a, string b) => edges.Values.FirstOrDefault(e => e.Connects(a) && e.Connects(b));
 
+        public float GetRouteDistance(IReadOnlyList<string> route)
+        {
+            if (route == null) throw new ArgumentNullException(nameof(route));
+            var distance = 0f;
+            for (var i = 1; i < route.Count; i++)
+            {
+                var edge = GetConnectingEdge(route[i - 1], route[i])
+                    ?? throw new InvalidOperationException(
+                        $"No edge connects route nodes '{route[i - 1]}' and '{route[i]}'.");
+                distance += edge.Distance;
+            }
+            return distance;
+        }
+
         public IReadOnlyList<string> FindRoute(string startId, string destinationId)
         {
             GetNode(startId); GetNode(destinationId);
-            var queue = new Queue<string>();
+            var unvisited = new HashSet<string>(nodes.Keys, StringComparer.Ordinal);
+            var distances = nodes.Keys.ToDictionary(id => id, _ => float.PositiveInfinity);
             var previous = new Dictionary<string, string>();
-            queue.Enqueue(startId); previous[startId] = null;
-            while (queue.Count > 0)
+            distances[startId] = 0f;
+            previous[startId] = null;
+
+            while (unvisited.Count > 0)
             {
-                var current = queue.Dequeue();
+                var current = unvisited
+                    .OrderBy(id => distances[id])
+                    .ThenBy(id => id, StringComparer.Ordinal)
+                    .First();
+                if (float.IsPositiveInfinity(distances[current])) break;
                 if (current == destinationId) break;
-                foreach (var neighbor in GetNeighbors(current))
-                    if (!previous.ContainsKey(neighbor.Id)) { previous[neighbor.Id] = current; queue.Enqueue(neighbor.Id); }
+                unvisited.Remove(current);
+
+                foreach (var edge in edges.Values.Where(edge => edge.Connects(current)))
+                {
+                    var neighborId = edge.Other(current);
+                    if (!unvisited.Contains(neighborId)) continue;
+                    var candidateDistance = distances[current] + edge.Distance;
+                    if (candidateDistance >= distances[neighborId]) continue;
+                    distances[neighborId] = candidateDistance;
+                    previous[neighborId] = current;
+                }
             }
+
             if (!previous.ContainsKey(destinationId)) throw new InvalidOperationException("No route exists.");
             var result = new List<string>();
             for (var at = destinationId; at != null; at = previous[at]) result.Add(at);

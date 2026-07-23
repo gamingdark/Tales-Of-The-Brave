@@ -2,10 +2,12 @@ namespace TalesOfVoyages.Simulation.Entities
 {
     public interface IEntityBehavior { }
 
-    public sealed class PlayerControlledBehavior : IEntityBehavior
+    public sealed class PlayerControlledBehavior : IEntityBehavior { }
+
+    public sealed class TransportBehavior : IEntityBehavior
     {
         public float SpeedPerDay { get; }
-        public PlayerControlledBehavior(float speedPerDay) => SpeedPerDay = speedPerDay;
+        public TransportBehavior(float speedPerDay) => SpeedPerDay = speedPerDay;
     }
 
     public sealed class DrawableBehavior : IEntityBehavior
