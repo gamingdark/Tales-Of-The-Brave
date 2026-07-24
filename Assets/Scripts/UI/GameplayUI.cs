@@ -1004,6 +1004,7 @@ namespace TalesOfTheBrave.Unity.UI
             if (tooltipTexture != null) Destroy(tooltipTexture);
             if (iconFrameTexture != null) Destroy(iconFrameTexture);
             if (portraitFrameTexture != null) Destroy(portraitFrameTexture);
+            if (nightTintTexture != null) Destroy(nightTintTexture);
         }
 
     }
