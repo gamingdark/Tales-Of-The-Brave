@@ -9,6 +9,7 @@ using TalesOfTheBrave.Simulation.Rulesets;
 using TalesOfTheBrave.Simulation.World;
 using TalesOfTheBrave.Simulation.Time;
 using TalesOfTheBrave.Simulation.Economy;
+using TalesOfTheBrave.Unity.UI;
 
 public sealed class WorldDefinitionTests
 {
@@ -242,6 +243,25 @@ public sealed class WorldDefinitionTests
     }
 
     [Test]
+    public void EnterLocationArrivalActionAdvancesAndOpensLocation()
+    {
+        var game = GameFactory.Create();
+        game.Movement.PlanDestination(game.PlayerShip.Id, "node_helsinki");
+        game.Time.AdvanceDays(5);
+        game.Time.Tick(game.Time.SecondsPerDay * 0.9f);
+        var location = game.GetPendingInteractionEntity();
+        var enter = location.Actions.Single(action => action.Label == "Enter location");
+
+        enter.Execute(game);
+
+        Assert.That(game.PlayerShip.Travel.IsInsideLocation, Is.True);
+        Assert.That(
+            game.PlayerShip.Travel.InsideLocationEntityId,
+            Is.EqualTo("location_helsinki"));
+        Assert.That(game.Time.Speed, Is.EqualTo(TimeSpeed.Paused));
+    }
+
+    [Test]
     public void FactoryUsesCustomTimeSystemDefinition()
     {
         var definition = CreateMinimalDefinition();
@@ -261,6 +281,40 @@ public sealed class WorldDefinitionTests
         Assert.That(game.Time.HoursPerDay, Is.EqualTo(12));
         Assert.That(game.Time.GetFormattedTime(), Is.EqualTo("04:00"));
         Assert.That(game.Time.Speed, Is.EqualTo(TimeSpeed.Fast));
+    }
+
+    [Test]
+    public void TimeManagerExposesContinuousDisplayedHour()
+    {
+        var time = new TimeManager(
+            secondsPerDay: 24f,
+            hoursPerDay: 24,
+            dayStartHourOffset: 7);
+
+        time.Tick(16.5f);
+
+        Assert.That(time.CurrentDisplayedHour, Is.EqualTo(23.5f).Within(0.001f));
+        Assert.That(time.GetFormattedTime(), Is.EqualTo("23:00"));
+    }
+
+    [TestCase(22.99f, 0f)]
+    [TestCase(23f, 0f)]
+    [TestCase(23.5f, 0.5f)]
+    [TestCase(0f, 1f)]
+    [TestCase(0.008333f, 0.5f)]
+    [TestCase(0.016667f, 0f)]
+    public void NightTintUsesConfiguredMidnightTransitions(
+        float hour,
+        float expectedStrength)
+    {
+        var strength = GameplayUI.CalculateNightTintStrength(
+            hour,
+            24f,
+            0f,
+            1f,
+            1f / 60f);
+
+        Assert.That(strength, Is.EqualTo(expectedStrength).Within(0.001f));
     }
 
     [TestCase(0, 24, 7, "day length")]

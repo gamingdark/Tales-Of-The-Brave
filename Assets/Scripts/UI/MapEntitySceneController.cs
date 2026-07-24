@@ -232,6 +232,16 @@ namespace TalesOfTheBrave.Unity.UI
             if (context == null || !mapVisible) return;
 
             var currentEvent = Event.current;
+            // The encounter overlay owns input in the map viewport while an
+            // interaction is pending. Do not consume its button events as map
+            // dragging or node selection.
+            if (context.GetPendingInteractionEntity() != null)
+            {
+                hoveredNodeId = null;
+                HoveredTooltip = null;
+                RefreshNodeHighlights();
+                return;
+            }
             var mousePosition = currentEvent.mousePosition;
             if (Input.touchCount > 0)
             {
@@ -470,7 +480,10 @@ namespace TalesOfTheBrave.Unity.UI
             var renderer = visual.gameObject.AddComponent<SpriteRenderer>();
             renderer.sprite = sprite;
             renderer.sortingOrder = sortingOrder;
-            renderer.maskInteraction = SpriteMaskInteraction.VisibleInsideMask;
+            // Runtime SpriteMask interaction can intermittently render sliced
+            // sprites as white silhouettes in Unity 2021. Viewport clipping for
+            // entity sprites is handled explicitly in RefreshViews instead.
+            renderer.maskInteraction = SpriteMaskInteraction.None;
         }
 
         private SpriteRenderer CreateNodeHighlight(Transform nodeTransform, Sprite iconSprite)
@@ -488,7 +501,7 @@ namespace TalesOfTheBrave.Unity.UI
             var renderer = highlight.gameObject.AddComponent<SpriteRenderer>();
             renderer.sprite = highlightSprite;
             renderer.sortingOrder = 9;
-            renderer.maskInteraction = SpriteMaskInteraction.VisibleInsideMask;
+            renderer.maskInteraction = SpriteMaskInteraction.None;
             renderer.enabled = false;
             return renderer;
         }
@@ -533,7 +546,9 @@ namespace TalesOfTheBrave.Unity.UI
             {
                 var selected = pair.Key == SelectedNodeId;
                 var hovered = pair.Key == hoveredNodeId;
-                pair.Value.enabled = selected || hovered;
+                pair.Value.enabled =
+                    (selected || hovered) &&
+                    IsInsideMapViewport(pair.Value.bounds.center);
                 if (selected) pair.Value.color = new Color(1f, 0.82f, 0.15f, 0.85f);
                 else if (hovered) pair.Value.color = new Color(0.45f, 0.45f, 0.45f, 0.8f);
             }
@@ -576,7 +591,9 @@ namespace TalesOfTheBrave.Unity.UI
             {
                 if (entity.HasBehavior<PlayerControlledBehavior>()) continue;
                 var node = context.World.GetNode(entity.GetBehavior<WorldEntityBehavior>().StartingNodeId);
-                views[entity.Id].transform.position = MapToWorld(node.MapX, node.MapY);
+                var view = views[entity.Id];
+                view.transform.position = MapToWorld(node.MapX, node.MapY);
+                SetViewVisibleInsideViewport(view);
             }
 
             foreach (var pair in nodeAnchors)
@@ -590,6 +607,23 @@ namespace TalesOfTheBrave.Unity.UI
             var shipView = views[ship.Id];
             shipView.RefreshTransport(ship, context.Time.DayProgress);
             shipView.transform.position = GetTransportPosition(ship);
+            SetViewVisibleInsideViewport(shipView);
+        }
+
+        private void SetViewVisibleInsideViewport(MapEntityView view)
+        {
+            var renderer = view.GetComponentInChildren<SpriteRenderer>();
+            if (renderer != null)
+                renderer.enabled = IsInsideMapViewport(renderer.bounds.center);
+        }
+
+        private bool IsInsideMapViewport(Vector3 worldPosition)
+        {
+            if (!TryGetMapViewportBounds(out var lower, out var upper)) return false;
+            return worldPosition.x >= Mathf.Min(lower.x, upper.x) &&
+                   worldPosition.x <= Mathf.Max(lower.x, upper.x) &&
+                   worldPosition.y >= Mathf.Min(lower.y, upper.y) &&
+                   worldPosition.y <= Mathf.Max(lower.y, upper.y);
         }
 
         private HashSet<string> GetHighlightedRouteEdges()

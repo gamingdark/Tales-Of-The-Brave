@@ -54,6 +54,7 @@ namespace TalesOfTheBrave.Unity.UI
                 locationWindowFrame,
                 locationEntityraitMaterial,
                 definition.UI,
+                definition.TimeSystem,
                 mapController);
         }
 

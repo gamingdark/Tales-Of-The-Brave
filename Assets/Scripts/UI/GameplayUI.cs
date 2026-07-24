@@ -98,7 +98,10 @@ namespace TalesOfTheBrave.Unity.UI
         private Texture2D tooltipTexture;
         private Texture2D iconFrameTexture;
         private Texture2D portraitFrameTexture;
+        private Texture2D nightTintTexture;
         private UiSystemDefinition uiDefinition;
+        private TimeSystemDefinition timeDefinition;
+        private GUIStyle nightTintStyle;
         private Vector2 chroniclerScroll;
         private ILocationAction selectedLocationAction;
         private MarketTradeSelection marketTradeSelection;
@@ -117,6 +120,7 @@ namespace TalesOfTheBrave.Unity.UI
             Sprite windowFrame,
             Material portraitMaterial,
             UiSystemDefinition uiSystemDefinition,
+            TimeSystemDefinition timeSystemDefinition,
             MapEntitySceneController entitySceneController)
         {
             context = gameContext ?? throw new ArgumentNullException(nameof(gameContext));
@@ -126,6 +130,7 @@ namespace TalesOfTheBrave.Unity.UI
             locationWindowFrame = windowFrame;
             circularImageMaterial = portraitMaterial;
             uiDefinition = uiSystemDefinition ?? throw new ArgumentNullException(nameof(uiSystemDefinition));
+            timeDefinition = timeSystemDefinition ?? throw new ArgumentNullException(nameof(timeSystemDefinition));
             mapController = entitySceneController;
         }
 
@@ -190,6 +195,12 @@ namespace TalesOfTheBrave.Unity.UI
                 uiDefinition.Tooltips.BorderWidth);
             iconFrameStyle = CreateRoundedPanelStyle(iconFrameTexture);
             portraitFrameStyle = CreateRoundedPanelStyle(portraitFrameTexture);
+            nightTintTexture = CreateRoundedPanelTexture(
+                "Rounded Map Night Tint",
+                Color.white,
+                Color.white,
+                0f);
+            nightTintStyle = CreateRoundedPanelStyle(nightTintTexture);
         }
 
         private void OnGUI()
@@ -276,7 +287,50 @@ namespace TalesOfTheBrave.Unity.UI
             }
 
             GUI.Box(panel, GUIContent.none, mapPanelStyle);
+            DrawMapNightTint(panel);
             DrawEnteringLocationOverlay(panel);
+        }
+
+        private void DrawMapNightTint(Rect panel)
+        {
+            var strength = CalculateNightTintStrength(
+                context.Time.CurrentDisplayedHour,
+                context.Time.HoursPerDay,
+                timeDefinition.MidnightHour,
+                timeDefinition.NightDarkeningDurationHours,
+                timeDefinition.NightBrighteningDurationHours);
+            if (strength <= 0f) return;
+
+            var previousColor = GUI.color;
+            var tint = timeDefinition.NightTint;
+            tint.a *= strength;
+            GUI.color = tint;
+            GUI.Box(
+                Inset(panel, Mathf.Max(1f, uiDefinition.Menus.BorderWidth)),
+                GUIContent.none,
+                nightTintStyle);
+            GUI.color = previousColor;
+        }
+
+        public static float CalculateNightTintStrength(
+            float currentHour,
+            float hoursPerDay,
+            float midnightHour,
+            float darkeningDurationHours,
+            float brighteningDurationHours)
+        {
+            if (hoursPerDay <= 0f) return 0f;
+            var hour = Mathf.Repeat(currentHour, hoursPerDay);
+            var midnight = Mathf.Repeat(midnightHour, hoursPerDay);
+            var untilMidnight = Mathf.Repeat(midnight - hour, hoursPerDay);
+            var afterMidnight = Mathf.Repeat(hour - midnight, hoursPerDay);
+            var darkening = untilMidnight <= darkeningDurationHours
+                ? 1f - untilMidnight / darkeningDurationHours
+                : 0f;
+            var brightening = afterMidnight <= brighteningDurationHours
+                ? 1f - afterMidnight / brighteningDurationHours
+                : 0f;
+            return Mathf.Clamp01(Mathf.Max(darkening, brightening));
         }
 
         private static GUIStyle CreateRoundedPanelStyle(Texture2D texture)

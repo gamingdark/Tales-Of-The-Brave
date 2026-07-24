@@ -15,9 +15,13 @@ namespace TalesOfTheBrave.Simulation.Time
         public int DayStartHourOffset { get; }
         public IReadOnlyList<TimeSpeed> AllowedSpeeds { get; }
         public float DayProgress => (float)elapsedDayFraction;
-        public int CurrentHour => (DayStartHourOffset + Math.Min(
+        public float CurrentDisplayedHour =>
+            (DayStartHourOffset + Math.Min(
+                HoursPerDay - 0.0001f,
+                DayProgress * HoursPerDay)) % HoursPerDay;
+        public int CurrentHour => Math.Min(
             HoursPerDay - 1,
-            (int)Math.Floor(elapsedDayFraction * HoursPerDay + 0.0001f))) % HoursPerDay;
+            (int)Math.Floor(CurrentDisplayedHour + 0.0001f));
         public event Action<GameDate> DayAdvanced;
 
         public TimeManager(

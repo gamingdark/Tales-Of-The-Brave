@@ -206,6 +206,23 @@ namespace TalesOfTheBrave.Simulation.Rulesets
             if (time.HoursPerDay <= 0) throw new InvalidOperationException("Time system hours per day must be positive.");
             if (time.DayStartHourOffset < 0 || time.DayStartHourOffset >= time.HoursPerDay)
                 throw new InvalidOperationException("Time system day-start offset must be within the configured day.");
+            if (time.MidnightHour < 0f || time.MidnightHour >= time.HoursPerDay ||
+                float.IsNaN(time.MidnightHour) || float.IsInfinity(time.MidnightHour))
+                throw new InvalidOperationException(
+                    "Time system midnight hour must be within the configured day.");
+            if (time.NightDarkeningDurationHours <= 0f ||
+                time.NightDarkeningDurationHours > time.HoursPerDay ||
+                float.IsNaN(time.NightDarkeningDurationHours) ||
+                float.IsInfinity(time.NightDarkeningDurationHours))
+                throw new InvalidOperationException(
+                    "Time system night darkening duration must be positive and no longer than a day.");
+            if (time.NightBrighteningDurationHours <= 0f ||
+                time.NightBrighteningDurationHours > time.HoursPerDay ||
+                float.IsNaN(time.NightBrighteningDurationHours) ||
+                float.IsInfinity(time.NightBrighteningDurationHours))
+                throw new InvalidOperationException(
+                    "Time system night brightening duration must be positive and no longer than a day.");
+            ValidateColor(time.NightTint, true, "night tint");
             if (time.AllowedSpeeds == null || time.AllowedSpeeds.Count == 0)
                 throw new InvalidOperationException("Time system requires at least one allowed running speed.");
 
