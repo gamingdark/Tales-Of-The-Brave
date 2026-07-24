@@ -5,7 +5,7 @@ using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
-namespace TalesOfVoyages.Editor
+namespace TalesOfTheBrave.Editor
 {
     [InitializeOnLoad]
     internal static class WebBuildBatchBootstrap
@@ -46,7 +46,7 @@ namespace TalesOfVoyages.Editor
             BuildTo(Path.GetFullPath(outputPath), false);
         }
 
-        [MenuItem("Tales of Voyages/Build WebGL to WebsitePublish")]
+        [MenuItem("Tales of the Brave/Build WebGL to WebsitePublish")]
         public static void BuildFromEditor()
         {
             var projectRoot = Directory.GetParent(Application.dataPath)?.FullName

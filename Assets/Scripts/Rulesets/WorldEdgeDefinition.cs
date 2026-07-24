@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace TalesOfVoyages.Simulation.Rulesets
+namespace TalesOfTheBrave.Simulation.Rulesets
 {
     [Serializable]
     public sealed class WorldEdgeDefinition

@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using TalesOfVoyages.Graphics;
+using TalesOfTheBrave.Graphics;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
-using TalesOfVoyages.Unity.UI;
+using TalesOfTheBrave.Unity.UI;
 
 [CustomEditor(typeof(ExternalGraphicsCatalog))]
 public sealed class ExternalGraphicsCatalogEditor : Editor
@@ -33,16 +33,16 @@ public sealed class ExternalGraphicsCatalogEditor : Editor
         var bootstrap = FindFirstObjectByType<GameBootstrap>();
         if (bootstrap == null) return;
         var serializedBootstrap = new SerializedObject(bootstrap);
-        var frameProperty = serializedBootstrap.FindProperty("portWindowFrame");
+        var frameProperty = serializedBootstrap.FindProperty("locationWindowFrame");
         if (frameProperty.objectReferenceValue == null)
-            frameProperty.objectReferenceValue = AssetDatabase.LoadAllAssetsAtPath("Assets/Graphics/window-port.png")
+            frameProperty.objectReferenceValue = AssetDatabase.LoadAllAssetsAtPath("Assets/Graphics/window-location.png")
                 .OfType<Sprite>()
                 .OrderByDescending(sprite => sprite.rect.width * sprite.rect.height)
                 .FirstOrDefault();
-        var materialProperty = serializedBootstrap.FindProperty("portPortraitMaterial");
+        var materialProperty = serializedBootstrap.FindProperty("locationEntityraitMaterial");
         if (materialProperty.objectReferenceValue == null)
             materialProperty.objectReferenceValue = AssetDatabase.LoadAssetAtPath<Material>(
-                "Assets/Graphics/PortPortrait.mat");
+                "Assets/Graphics/LocationPortrait.mat");
         serializedBootstrap.ApplyModifiedProperties();
     }
 
@@ -52,7 +52,7 @@ public sealed class ExternalGraphicsCatalogEditor : Editor
         if (GUILayout.Button("Scan Project Sprites")) Scan((ExternalGraphicsCatalog)target);
     }
 
-    [MenuItem("Tales of Voyages/Graphics/Rebuild External Graphics Catalog")]
+    [MenuItem("Tales of the Brave/Graphics/Rebuild External Graphics Catalog")]
     private static void RebuildSceneCatalog()
     {
         var catalog = FindFirstObjectByType<ExternalGraphicsCatalog>();

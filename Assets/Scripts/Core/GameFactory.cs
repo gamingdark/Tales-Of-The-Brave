@@ -1,24 +1,24 @@
 using System.Linq;
-using TalesOfVoyages.Simulation.Chronicle;
-using TalesOfVoyages.Simulation.Movement;
-using TalesOfVoyages.Simulation.Rulesets;
-using TalesOfVoyages.Simulation.Time;
-using TalesOfVoyages.Simulation.World;
-using TalesOfVoyages.Simulation.Entities;
+using TalesOfTheBrave.Simulation.Chronicle;
+using TalesOfTheBrave.Simulation.Movement;
+using TalesOfTheBrave.Simulation.Rulesets;
+using TalesOfTheBrave.Simulation.Time;
+using TalesOfTheBrave.Simulation.World;
+using TalesOfTheBrave.Simulation.Entities;
 using System.Collections.Generic;
 
-namespace TalesOfVoyages.Simulation.Core
+namespace TalesOfTheBrave.Simulation.Core
 {
-    public static class MvpGameFactory
+    public static class GameFactory
     {
         public static GameContext Create()
         {
-            return Create(MvpWorldDefinition.CreateDefault());
+            return Create(WorldDefinition.CreateDefault());
         }
 
-        public static GameContext Create(MvpWorldDefinition definition)
+        public static GameContext Create(WorldDefinition definition)
         {
-            MvpWorldDefinitionValidator.Validate(definition);
+            WorldDefinitionValidator.Validate(definition);
 
             var timeDefinition = definition.TimeSystem;
             var time = new TimeManager(
@@ -28,6 +28,14 @@ namespace TalesOfVoyages.Simulation.Core
                 dayStartHourOffset: timeDefinition.DayStartHourOffset,
                 allowedSpeeds: timeDefinition.AllowedSpeeds);
             var world = new WorldGraph();
+            var commodities = definition.Commodities.ToDictionary(
+                commodity => commodity.Name,
+                commodity => new Commodity(
+                    commodity.Name,
+                    commodity.DefaultPrice,
+                    commodity.Unit.FullName,
+                    commodity.Unit.Abbreviation),
+                System.StringComparer.Ordinal);
 
             foreach (var node in definition.Nodes)
                 world.AddNode(new WorldNode(
@@ -48,7 +56,7 @@ namespace TalesOfVoyages.Simulation.Core
 
             var entities = new List<Entity>();
             foreach (var entityDefinition in definition.Entities)
-                entities.Add(CreateEntity(entityDefinition));
+                entities.Add(CreateEntity(entityDefinition, commodities));
 
             var playerEntity = entities.Single(entity => entity.HasBehavior<PlayerControlledBehavior>());
             var movement = new MovementManager(world, nodeId => entities.Any(entity =>
@@ -58,7 +66,8 @@ namespace TalesOfVoyages.Simulation.Core
             movement.Register(new Transport(playerEntity));
 
             var chronicler = new Chronicler();
-            var context = new GameContext(time, world, movement, chronicler, playerEntity.Id, entities);
+            var context = new GameContext(
+                time, world, movement, chronicler, playerEntity.Id, entities, commodities);
             time.DayAdvanced += context.ProcessDay;
             movement.VoyageStarted += (ship, from, to) => chronicler.Record(
                 time.CurrentDate,
@@ -75,20 +84,41 @@ namespace TalesOfVoyages.Simulation.Core
             return context;
         }
 
-        private static Entity CreateEntity(EntityDefinition definition)
+        private static Entity CreateEntity(
+            EntityDefinition definition,
+            IReadOnlyDictionary<string, Commodity> commodities)
         {
             var entity = new Entity(definition.Id, definition.DisplayName);
             var behaviors = definition.Behaviors;
             if (behaviors.PlayerControlledBehavior != null)
                 entity.AddBehavior(new PlayerControlledBehavior());
             if (behaviors.TransportBehavior != null)
-                entity.AddBehavior(new TransportBehavior(behaviors.TransportBehavior.SpeedPerDay));
+                entity.AddBehavior(new TransportBehavior(
+                    behaviors.TransportBehavior.SpeedPerDay,
+                    behaviors.TransportBehavior.MaxCargoAmount,
+                    behaviors.TransportBehavior.CurrentGold));
             if (behaviors.DrawableBehavior != null)
                 entity.AddBehavior(new DrawableBehavior(behaviors.DrawableBehavior.MapIconSprite));
             if (behaviors.WorldEntityBehavior != null)
                 entity.AddBehavior(new WorldEntityBehavior(behaviors.WorldEntityBehavior.StartingNodeId));
-            if (behaviors.PortBehavior != null)
-                entity.AddBehavior(new PortBehavior(behaviors.PortBehavior.PortViewSprite));
+            if (behaviors.LocationBehavior != null)
+                entity.AddBehavior(new LocationBehavior(
+                    behaviors.LocationBehavior.LocationViewSprite,
+                    definition.Id,
+                    definition.DisplayName));
+            if (behaviors.MarketBehavior != null)
+                entity.AddBehavior(new MarketBehavior(
+                    behaviors.MarketBehavior.Title,
+                    behaviors.MarketBehavior.Commodities
+                        .Select(marketCommodity => new MarketCommodity(
+                            commodities[marketCommodity.CommodityName],
+                            marketCommodity.TargetAmount,
+                            marketCommodity.MaxAmountPercentage,
+                            marketCommodity.MinAmountPercentage,
+                            marketCommodity.Consumption,
+                            marketCommodity.Production,
+                            marketCommodity.NormalPriceCoefficient))
+                        .ToArray()));
             return entity;
         }
     }

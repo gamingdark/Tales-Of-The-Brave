@@ -1,8 +1,8 @@
 {
-  "name": "TalesOfVoyages.EditorTests",
-  "rootNamespace": "TalesOfVoyages.Tests",
+  "name": "TalesOfTheBrave.EditorTests",
+  "rootNamespace": "TalesOfTheBrave.Tests",
   "references": [
-    "TalesOfVoyages"
+    "TalesOfTheBrave"
   ],
   "includePlatforms": [
     "Editor"

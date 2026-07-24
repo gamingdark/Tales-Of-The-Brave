@@ -1,30 +1,22 @@
 using UnityEngine;
-using TalesOfVoyages.Simulation.Core;
-using TalesOfVoyages.Graphics;
-using TalesOfVoyages.Simulation.Rulesets;
+using TalesOfTheBrave.Simulation.Core;
+using TalesOfTheBrave.Graphics;
+using TalesOfTheBrave.Simulation.Rulesets;
 
-namespace TalesOfVoyages.Unity.UI
+namespace TalesOfTheBrave.Unity.UI
 {
     public sealed class GameBootstrap : MonoBehaviour
     {
         [Header("Map Graphics")]
         [SerializeField] private ExternalGraphicsCatalog externalGraphics;
-        [SerializeField] private Sprite portWindowFrame;
-        [SerializeField] private Material portPortraitMaterial;
+        [SerializeField] private Sprite locationWindowFrame;
+        [SerializeField] private Material locationEntityraitMaterial;
         [SerializeField] private Shader roundedMapShader;
         [SerializeField, Min(0.01f)] private float mapIconScale = 0.4f;
 
-        [Header("Map Bounds")]
-        [SerializeField] private Transform mapBottomLeft;
-        [SerializeField] private Transform mapTopRight;
-
-        [Header("Left Menu Bounds")]
-        [SerializeField] private Transform leftMenuBottomLeft;
-        [SerializeField] private Transform leftMenuTopRight;
-
-        [Header("Bottom Menu Bounds")]
-        [SerializeField] private Transform bottomMenuBottomLeft;
-        [SerializeField] private Transform bottomMenuTopRight;
+        [Header("Layout")]
+        [SerializeField] private Camera layoutCamera;
+        [SerializeField] private Transform layoutDivider;
 
         public GameContext Context { get; private set; }
 
@@ -32,37 +24,48 @@ namespace TalesOfVoyages.Unity.UI
         private static void EnsureBootstrapExists()
         {
             if (FindFirstObjectByType<GameBootstrap>() != null) return;
-            new GameObject("Tales of Voyages MVP").AddComponent<GameBootstrap>();
+            new GameObject("Tales of the Brave").AddComponent<GameBootstrap>();
         }
 
         private void Awake()
         {
             DontDestroyOnLoad(gameObject);
-            var definition = MvpWorldDefinition.CreateDefault();
-            MvpWorldDefinitionValidator.Validate(definition, externalGraphics);
-            Context = MvpGameFactory.Create(definition);
+            ResolveLayoutReferences();
+            var definition = WorldDefinition.CreateDefault();
+            WorldDefinitionValidator.Validate(definition, externalGraphics);
+            Context = GameFactory.Create(definition);
             var mapController = gameObject.AddComponent<MapEntitySceneController>();
             mapController.Initialize(
                 Context,
-                mapBottomLeft,
-                mapTopRight,
+                layoutCamera,
+                layoutDivider,
                 externalGraphics,
                 definition.MapBackgroundSprite,
                 definition.SceneBackgroundSprite,
+                definition.MapWidth,
+                definition.MapHeight,
                 roundedMapShader,
                 mapIconScale);
-            gameObject.AddComponent<MvpDemoUI>().Initialize(
+            gameObject.AddComponent<GameplayUI>().Initialize(
                 Context,
-                mapBottomLeft,
-                mapTopRight,
-                leftMenuBottomLeft,
-                leftMenuTopRight,
-                bottomMenuBottomLeft,
-                bottomMenuTopRight,
+                layoutCamera,
+                layoutDivider,
                 externalGraphics,
-                portWindowFrame,
-                portPortraitMaterial,
+                locationWindowFrame,
+                locationEntityraitMaterial,
+                definition.UI,
                 mapController);
+        }
+
+        private void ResolveLayoutReferences()
+        {
+            if (layoutCamera == null)
+                layoutCamera = Camera.main ?? FindFirstObjectByType<Camera>();
+            if (layoutDivider == null)
+            {
+                var dividerObject = GameObject.Find("Layout Divider");
+                if (dividerObject != null) layoutDivider = dividerObject.transform;
+            }
         }
 
         private void Update() => Context.Tick(UnityEngine.Time.deltaTime);
@@ -71,11 +74,16 @@ namespace TalesOfVoyages.Unity.UI
         private void OnValidate()
         {
             var changed = false;
-            if (portPortraitMaterial == null)
+            if (layoutCamera == null)
             {
-                portPortraitMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(
-                    "Assets/Graphics/PortPortrait.mat");
-                changed = portPortraitMaterial != null;
+                layoutCamera = Camera.main ?? FindFirstObjectByType<Camera>();
+                changed = layoutCamera != null;
+            }
+            if (locationEntityraitMaterial == null)
+            {
+                locationEntityraitMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(
+                    "Assets/Graphics/LocationPortrait.mat");
+                changed = locationEntityraitMaterial != null;
             }
             if (roundedMapShader == null)
             {
@@ -83,9 +91,9 @@ namespace TalesOfVoyages.Unity.UI
                     "Assets/Shaders/RoundedSprite.shader");
                 changed = changed || roundedMapShader != null;
             }
-            if (portWindowFrame == null)
+            if (locationWindowFrame == null)
             {
-                var assets = UnityEditor.AssetDatabase.LoadAllAssetsAtPath("Assets/Graphics/window-port.png");
+                var assets = UnityEditor.AssetDatabase.LoadAllAssetsAtPath("Assets/Graphics/window-location.png");
                 Sprite largest = null;
                 foreach (var asset in assets)
                 {
@@ -95,7 +103,7 @@ namespace TalesOfVoyages.Unity.UI
                 }
                 if (largest != null)
                 {
-                    portWindowFrame = largest;
+                    locationWindowFrame = largest;
                     changed = true;
                 }
             }

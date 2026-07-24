@@ -1,6 +1,6 @@
 using System;
 
-namespace TalesOfVoyages.Graphics
+namespace TalesOfTheBrave.Graphics
 {
     public static class SpriteCatalogNaming
     {

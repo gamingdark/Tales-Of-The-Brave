@@ -91,7 +91,7 @@ if (Test-Path -LiteralPath $unityLockFile) {
         Write-Host 'Removed stale Unity project lock.'
     }
     catch {
-        throw "The Unity project is open. Close the Unity Editor before running command-line deployment. For a manual build while the Editor is open, use 'Tales of Voyages > Build WebGL to WebsitePublish'."
+        throw "The Unity project is open. Close the Unity Editor before running command-line deployment. For a manual build while the Editor is open, use 'Tales of the Brave > Build WebGL to WebsitePublish'."
     }
 }
 

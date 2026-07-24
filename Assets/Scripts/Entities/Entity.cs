@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace TalesOfVoyages.Simulation.Entities
+namespace TalesOfTheBrave.Simulation.Entities
 {
     public sealed class Entity
     {

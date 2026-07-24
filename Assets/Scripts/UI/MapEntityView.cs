@@ -1,9 +1,9 @@
 using UnityEngine;
-using TalesOfVoyages.Simulation.Movement;
-using TalesOfVoyages.Simulation.World;
-using TalesOfVoyages.Simulation.Entities;
+using TalesOfTheBrave.Simulation.Movement;
+using TalesOfTheBrave.Simulation.World;
+using TalesOfTheBrave.Simulation.Entities;
 
-namespace TalesOfVoyages.Unity.UI
+namespace TalesOfTheBrave.Unity.UI
 {
     public sealed class MapEntityView : MonoBehaviour
     {
@@ -28,7 +28,7 @@ namespace TalesOfVoyages.Unity.UI
         {
             entityId = entity.Id;
             displayName = entity.DisplayName;
-            entityType = entity.HasBehavior<PortBehavior>() ? "Port" : "Entity";
+            entityType = entity.HasBehavior<LocationBehavior>() ? "Location" : "Entity";
             state = "Active";
             locationNodeId = entity.GetBehavior<WorldEntityBehavior>().StartingNodeId;
             name = $"{entityType} - {entity.DisplayName}";
@@ -51,7 +51,7 @@ namespace TalesOfVoyages.Unity.UI
             edgeProgress = travel.EdgeProgress;
             visualEdgeProgress = travel.GetVisualEdgeProgress(dayProgress);
 
-            if (travel.IsEnteringPort(dayProgress)) state = "EnteringPort";
+            if (travel.IsEnteringLocation(dayProgress)) state = "EnteringLocation";
             else if (travel.IsTravelling) state = "Travelling";
             else if (travel.HasPlannedAction) state = "VoyagePlanned";
             else state = "InPort";

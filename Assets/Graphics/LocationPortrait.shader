@@ -1,4 +1,4 @@
-Shader "TalesOfVoyages/PortPortrait"
+Shader "TalesOfTheBrave/LocationPortrait"
 {
     Properties
     {

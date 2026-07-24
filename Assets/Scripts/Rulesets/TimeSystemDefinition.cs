@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using TalesOfVoyages.Simulation.Time;
+using TalesOfTheBrave.Simulation.Time;
 
-namespace TalesOfVoyages.Simulation.Rulesets
+namespace TalesOfTheBrave.Simulation.Rulesets
 {
     [Serializable]
     public sealed class TimeSystemDefinition

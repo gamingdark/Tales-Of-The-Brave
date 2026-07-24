@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace TalesOfVoyages.Graphics
+namespace TalesOfTheBrave.Graphics
 {
     public sealed class ExternalGraphicsCatalog : MonoBehaviour, ISpriteNameLookup
     {

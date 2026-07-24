@@ -1,6 +1,6 @@
 using System;
 using NUnit.Framework;
-using TalesOfVoyages.Graphics;
+using TalesOfTheBrave.Graphics;
 using UnityEngine;
 
 public sealed class ExternalGraphicsCatalogTests

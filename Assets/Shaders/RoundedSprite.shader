@@ -1,4 +1,4 @@
-Shader "TalesOfVoyages/Rounded Sprite"
+Shader "TalesOfTheBrave/Rounded Sprite"
 {
     Properties
     {

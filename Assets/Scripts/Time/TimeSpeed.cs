@@ -1,4 +1,4 @@
-namespace TalesOfVoyages.Simulation.Time
+namespace TalesOfTheBrave.Simulation.Time
 {
     public enum TimeSpeed
     {

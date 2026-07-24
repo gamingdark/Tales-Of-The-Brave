@@ -1,6 +1,6 @@
 using System;
 
-namespace TalesOfVoyages.Simulation.Rulesets
+namespace TalesOfTheBrave.Simulation.Rulesets
 {
     [Serializable]
     public sealed class PlayerShipDefinition : EntityDefinition
@@ -12,11 +12,14 @@ namespace TalesOfVoyages.Simulation.Rulesets
             string displayName,
             float speedPerDay,
             string startingNodeId,
-            string mapIconSprite = null)
+            string mapIconSprite = null,
+            int maxCargoAmount = 200,
+            int currentGold = 1000)
             : base(id, displayName, new EntityBehaviorsDefinition
             {
                 PlayerControlledBehavior = new PlayerControlledBehaviorDefinition(),
-                TransportBehavior = new TransportBehaviorDefinition(speedPerDay),
+                TransportBehavior = new TransportBehaviorDefinition(
+                    speedPerDay, maxCargoAmount, currentGold),
                 DrawableBehavior = new DrawableBehaviorDefinition(mapIconSprite),
                 WorldEntityBehavior = new WorldEntityBehaviorDefinition(startingNodeId)
             })

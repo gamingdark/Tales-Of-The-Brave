@@ -1,4 +1,4 @@
-namespace TalesOfVoyages.Graphics
+namespace TalesOfTheBrave.Graphics
 {
     public interface ISpriteNameLookup
     {

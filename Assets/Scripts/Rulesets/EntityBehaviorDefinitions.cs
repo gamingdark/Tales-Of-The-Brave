@@ -1,6 +1,7 @@
 using System;
+using System.Collections.Generic;
 
-namespace TalesOfVoyages.Simulation.Rulesets
+namespace TalesOfTheBrave.Simulation.Rulesets
 {
     [Serializable]
     public sealed class EntityBehaviorsDefinition
@@ -9,7 +10,8 @@ namespace TalesOfVoyages.Simulation.Rulesets
         public TransportBehaviorDefinition TransportBehavior;
         public DrawableBehaviorDefinition DrawableBehavior;
         public WorldEntityBehaviorDefinition WorldEntityBehavior;
-        public PortBehaviorDefinition PortBehavior;
+        public LocationBehaviorDefinition LocationBehavior;
+        public MarketBehaviorDefinition MarketBehavior;
     }
 
     [Serializable]
@@ -19,8 +21,18 @@ namespace TalesOfVoyages.Simulation.Rulesets
     public sealed class TransportBehaviorDefinition
     {
         public float SpeedPerDay;
+        public int MaxCargoAmount = 200;
+        public int CurrentGold = 1000;
         public TransportBehaviorDefinition() { }
-        public TransportBehaviorDefinition(float speedPerDay) => SpeedPerDay = speedPerDay;
+        public TransportBehaviorDefinition(
+            float speedPerDay,
+            int maxCargoAmount = 200,
+            int currentGold = 1000)
+        {
+            SpeedPerDay = speedPerDay;
+            MaxCargoAmount = maxCargoAmount;
+            CurrentGold = currentGold;
+        }
     }
 
     [Serializable]
@@ -40,10 +52,44 @@ namespace TalesOfVoyages.Simulation.Rulesets
     }
 
     [Serializable]
-    public sealed class PortBehaviorDefinition
+    public sealed class LocationBehaviorDefinition
     {
-        public string PortViewSprite;
-        public PortBehaviorDefinition() { }
-        public PortBehaviorDefinition(string portViewSprite) => PortViewSprite = portViewSprite;
+        public string LocationViewSprite;
+        public LocationBehaviorDefinition() { }
+        public LocationBehaviorDefinition(string locationViewSprite) => LocationViewSprite = locationViewSprite;
+    }
+
+    [Serializable]
+    public sealed class MarketBehaviorDefinition
+    {
+        public string Title = "Market";
+        public List<MarketCommodityDefinition> Commodities = new List<MarketCommodityDefinition>();
+
+        public MarketBehaviorDefinition() { }
+
+        public MarketBehaviorDefinition(
+            IEnumerable<string> commodityNames,
+            string title = "Market")
+        {
+            Title = title;
+            if (commodityNames == null) return;
+            foreach (var commodityName in commodityNames)
+                Commodities.Add(new MarketCommodityDefinition(commodityName));
+        }
+    }
+
+    [Serializable]
+    public sealed class MarketCommodityDefinition
+    {
+        public string CommodityName;
+        public int TargetAmount = 100;
+        public float MaxAmountPercentage = 200f;
+        public float MinAmountPercentage = 50f;
+        public int Consumption = 25;
+        public int Production = 25;
+        public float NormalPriceCoefficient = 1f;
+
+        public MarketCommodityDefinition() { }
+        public MarketCommodityDefinition(string commodityName) => CommodityName = commodityName;
     }
 }

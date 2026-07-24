@@ -1,8 +1,8 @@
 using System;
 
-namespace TalesOfVoyages.Simulation.World
+namespace TalesOfTheBrave.Simulation.World
 {
-    public enum WorldNodeType { Port, Sea, HiddenLocation }
+    public enum WorldNodeType { Location, Sea, HiddenLocation }
 
     public sealed class WorldNode
     {

@@ -1,4 +1,4 @@
-namespace TalesOfVoyages.Simulation.World
+namespace TalesOfTheBrave.Simulation.World
 {
     public readonly struct WorldMapPoint
     {

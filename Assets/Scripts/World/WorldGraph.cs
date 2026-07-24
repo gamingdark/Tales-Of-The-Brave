@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace TalesOfVoyages.Simulation.World
+namespace TalesOfTheBrave.Simulation.World
 {
     public sealed class WorldGraph
     {

@@ -1,6 +1,6 @@
 using System;
 
-namespace TalesOfVoyages.Simulation.Rulesets
+namespace TalesOfTheBrave.Simulation.Rulesets
 {
     [Serializable]
     public sealed class RouteMapPointDefinition

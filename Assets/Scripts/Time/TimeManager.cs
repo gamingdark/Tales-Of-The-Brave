@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace TalesOfVoyages.Simulation.Time
+namespace TalesOfTheBrave.Simulation.Time
 {
     public sealed class TimeManager
     {

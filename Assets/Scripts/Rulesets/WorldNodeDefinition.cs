@@ -1,7 +1,7 @@
 using System;
-using TalesOfVoyages.Simulation.World;
+using TalesOfTheBrave.Simulation.World;
 
-namespace TalesOfVoyages.Simulation.Rulesets
+namespace TalesOfTheBrave.Simulation.Rulesets
 {
     [Serializable]
     public sealed class WorldNodeDefinition

@@ -1,6 +1,6 @@
 using System.Linq;
 using NUnit.Framework;
-using TalesOfVoyages.Simulation.World;
+using TalesOfTheBrave.Simulation.World;
 
 public sealed class WorldGraphTests
 {
@@ -43,8 +43,8 @@ public sealed class WorldGraphTests
     private static WorldGraph CreateTwoNodeGraph()
     {
         var graph = new WorldGraph();
-        graph.AddNode(new WorldNode("node_a", "A", WorldNodeType.Port, 0f, 0f));
-        graph.AddNode(new WorldNode("node_b", "B", WorldNodeType.Port, 1f, 1f));
+        graph.AddNode(new WorldNode("node_a", "A", WorldNodeType.Location, 0f, 0f));
+        graph.AddNode(new WorldNode("node_b", "B", WorldNodeType.Location, 1f, 1f));
         graph.AddEdge(new WorldEdge("edge_ab", "node_a", "node_b", 10f));
         return graph;
     }

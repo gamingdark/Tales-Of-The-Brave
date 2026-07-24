@@ -1,8 +1,15 @@
 using System;
 using System.Collections.Generic;
 
-namespace TalesOfVoyages.Simulation.Movement
+namespace TalesOfTheBrave.Simulation.Movement
 {
+    public enum TravelStatus
+    {
+        AtNode,
+        Travelling,
+        InsideLocation
+    }
+
     public sealed class DayTravelSegment
     {
         public string EdgeId { get; }
@@ -45,9 +52,14 @@ namespace TalesOfVoyages.Simulation.Movement
         public float DayEndEdgeProgress { get; internal set; }
         public float ArrivalDayFraction { get; internal set; } = -1f;
         public bool HasActiveDaySegment { get; internal set; }
+        public string InsideLocationEntityId { get; internal set; }
         public List<string> RemainingRoute { get; } = new List<string>();
         public List<DayTravelSegment> DaySegments { get; } = new List<DayTravelSegment>();
         public bool IsTravelling => CurrentEdgeId != null;
+        public bool IsInsideLocation => InsideLocationEntityId != null;
+        public TravelStatus Status => IsInsideLocation
+            ? TravelStatus.InsideLocation
+            : IsTravelling ? TravelStatus.Travelling : TravelStatus.AtNode;
         public bool HasPlannedAction => PlannedDestinationNodeId != null;
         public string NextNodeId => RemainingRoute.Count > 0 ? RemainingRoute[0] : null;
 
@@ -94,6 +106,6 @@ namespace TalesOfVoyages.Simulation.Movement
             ArrivalDayFraction >= 0f &&
             dayProgress >= ArrivalDayFraction;
 
-        public bool IsEnteringPort(float dayProgress) => IsApproachingNode(dayProgress);
+        public bool IsEnteringLocation(float dayProgress) => IsApproachingNode(dayProgress);
     }
 }

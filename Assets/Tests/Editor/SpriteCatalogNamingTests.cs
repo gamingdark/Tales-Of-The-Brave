@@ -1,5 +1,5 @@
 using NUnit.Framework;
-using TalesOfVoyages.Graphics;
+using TalesOfTheBrave.Graphics;
 
 public sealed class SpriteCatalogNamingTests
 {

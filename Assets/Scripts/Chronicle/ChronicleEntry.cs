@@ -1,6 +1,6 @@
-using TalesOfVoyages.Simulation.Time;
+using TalesOfTheBrave.Simulation.Time;
 
-namespace TalesOfVoyages.Simulation.Chronicle
+namespace TalesOfTheBrave.Simulation.Chronicle
 {
     public readonly struct ChronicleEntry
     {

@@ -1,5 +1,5 @@
 using NUnit.Framework;
-using TalesOfVoyages.Simulation.Time;
+using TalesOfTheBrave.Simulation.Time;
 
 public sealed class TimeManagerTests
 {

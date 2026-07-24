@@ -1,6 +1,6 @@
 using System;
 
-namespace TalesOfVoyages.Simulation.Time
+namespace TalesOfTheBrave.Simulation.Time
 {
     [Serializable]
     public readonly struct GameDate : IEquatable<GameDate>

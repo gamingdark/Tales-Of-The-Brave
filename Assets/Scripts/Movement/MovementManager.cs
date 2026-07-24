@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using TalesOfVoyages.Simulation.World;
+using TalesOfTheBrave.Simulation.World;
 
-namespace TalesOfVoyages.Simulation.Movement
+namespace TalesOfTheBrave.Simulation.Movement
 {
     public sealed class MovementManager
     {
@@ -31,6 +31,8 @@ namespace TalesOfVoyages.Simulation.Movement
         {
             var transport = GetTransport(transportId);
             var state = transport.Travel;
+            if (state.IsInsideLocation)
+                throw new InvalidOperationException("The ship must exit the location before planning a voyage.");
             if (state.IsTravelling) throw new InvalidOperationException("The ship is already travelling.");
             if (state.CurrentNodeId == destinationNodeId) throw new InvalidOperationException("The ship is already there.");
             world.FindRoute(state.CurrentNodeId, destinationNodeId);
@@ -46,6 +48,37 @@ namespace TalesOfVoyages.Simulation.Movement
 
         // Kept as the public command name expected by future callers; departure occurs on the next daily pulse.
         public void SetDestination(string transportId, string destinationNodeId) => PlanDestination(transportId, destinationNodeId);
+
+        public void AbortRoute(string transportId, float dayProgress)
+        {
+            var state = GetTransport(transportId).Travel;
+            if (!state.IsTravelling)
+                throw new InvalidOperationException("Only an active route can be aborted.");
+
+            var immediateNodeId = state.GetNextNodeId(dayProgress) ?? state.NextNodeId;
+            var destinationIndex = state.RemainingRoute.IndexOf(immediateNodeId);
+            if (destinationIndex < 0)
+                throw new InvalidOperationException("The route's next node is missing.");
+
+            if (destinationIndex + 1 < state.RemainingRoute.Count)
+                state.RemainingRoute.RemoveRange(
+                    destinationIndex + 1,
+                    state.RemainingRoute.Count - destinationIndex - 1);
+            state.DestinationNodeId = immediateNodeId;
+
+            if (!state.HasActiveDaySegment || state.DaySegments.Count == 0) return;
+            var visualSegment = state.GetVisualSegment(dayProgress);
+            var visualIndex = state.DaySegments.IndexOf(visualSegment);
+            if (visualIndex >= 0 && visualIndex + 1 < state.DaySegments.Count)
+                state.DaySegments.RemoveRange(
+                    visualIndex + 1,
+                    state.DaySegments.Count - visualIndex - 1);
+            var finalSegment = state.DaySegments[state.DaySegments.Count - 1];
+            state.DayEndEdgeProgress = finalSegment.EndEdgeProgress;
+            state.ArrivalDayFraction = finalSegment.ReachesNode
+                ? finalSegment.EndDayFraction
+                : -1f;
+        }
 
         private void StartPlannedVoyage(Transport transport)
         {
