@@ -6,9 +6,18 @@ using TalesOfTheBrave.Simulation.Movement;
 namespace TalesOfTheBrave.Simulation.Entities
 {
     public interface IEntityBehavior { }
+    public interface ICargoItem
+    {
+        string Name { get; }
+        string UnitName { get; }
+        string UnitAbbreviation { get; }
+        string IconSprite { get; }
+    }
     public interface ILocationAction : IEntityBehavior
     {
         string Title { get; }
+        string IconSprite { get; }
+        string AdditionalInfo { get; }
     }
 
     public sealed class PlayerControlledBehavior : IEntityBehavior { }
@@ -45,13 +54,16 @@ namespace TalesOfTheBrave.Simulation.Entities
     {
         private readonly IEntityAction[] locationActions;
         public string LocationViewSprite { get; }
+        public string Description { get; }
         public System.Collections.Generic.IReadOnlyList<IEntityAction> Actions => locationActions;
         public LocationBehavior(
             string locationViewSprite,
+            string description,
             string entityId,
             string displayName)
         {
             LocationViewSprite = locationViewSprite;
+            Description = description;
             locationActions = new IEntityAction[]
             {
                 new EnterLocationAction(entityId),
@@ -60,19 +72,26 @@ namespace TalesOfTheBrave.Simulation.Entities
         }
     }
 
-    public sealed class Commodity
+    public sealed class Commodity : ICargoItem
     {
         public string Name { get; }
         public int DefaultPrice { get; }
         public string UnitName { get; }
         public string UnitAbbreviation { get; }
+        public string IconSprite { get; }
 
-        public Commodity(string name, int defaultPrice, string unitName, string unitAbbreviation)
+        public Commodity(
+            string name,
+            int defaultPrice,
+            string unitName,
+            string unitAbbreviation,
+            string iconSprite = null)
         {
             Name = name ?? throw new ArgumentNullException(nameof(name));
             DefaultPrice = defaultPrice;
             UnitName = unitName ?? throw new ArgumentNullException(nameof(unitName));
             UnitAbbreviation = unitAbbreviation ?? throw new ArgumentNullException(nameof(unitAbbreviation));
+            IconSprite = iconSprite;
         }
     }
 
@@ -85,10 +104,19 @@ namespace TalesOfTheBrave.Simulation.Entities
         public int Consumption { get; }
         public int Production { get; }
         public float NormalPriceCoefficient { get; }
-        public int CurrentAmount { get; internal set; }
-        public int CurrentPrice => (int)Math.Round(
-            Commodity.DefaultPrice * NormalPriceCoefficient,
-            MidpointRounding.AwayFromZero);
+        public float BuySellSpreadPercentage { get; }
+        public int CurrentAmount { get; set; }
+        public int CurrentPrice { get; internal set; }
+        public int BuyPrice => Math.Max(
+            0,
+            (int)Math.Round(
+                CurrentPrice * (1f + BuySellSpreadPercentage / 100f),
+                MidpointRounding.AwayFromZero));
+        public int SellPrice => Math.Max(
+            0,
+            (int)Math.Round(
+                CurrentPrice * (1f - BuySellSpreadPercentage / 100f),
+                MidpointRounding.AwayFromZero));
 
         public MarketCommodity(
             Commodity commodity,
@@ -97,7 +125,8 @@ namespace TalesOfTheBrave.Simulation.Entities
             float minAmountPercentage,
             int consumption,
             int production,
-            float normalPriceCoefficient)
+            float normalPriceCoefficient,
+            float buySellSpreadPercentage = 5f)
         {
             Commodity = commodity ?? throw new ArgumentNullException(nameof(commodity));
             TargetAmount = targetAmount;
@@ -106,31 +135,54 @@ namespace TalesOfTheBrave.Simulation.Entities
             Consumption = consumption;
             Production = production;
             NormalPriceCoefficient = normalPriceCoefficient;
+            BuySellSpreadPercentage = buySellSpreadPercentage;
             CurrentAmount = targetAmount;
+            CurrentPrice = (int)Math.Round(
+                Commodity.DefaultPrice * NormalPriceCoefficient,
+                MidpointRounding.AwayFromZero);
         }
     }
 
     public sealed class MarketBehavior : ILocationAction
     {
         public string Title { get; }
+        public string IconSprite { get; }
+        public string AdditionalInfo => string.Join(
+            "\n",
+            Commodities.Select(commodity =>
+                $"{commodity.Commodity.Name}: {commodity.CurrentAmount}"));
         public IReadOnlyList<MarketCommodity> Commodities { get; }
 
-        public MarketBehavior(string title, IReadOnlyList<MarketCommodity> commodities)
+        public MarketBehavior(
+            string title,
+            IReadOnlyList<MarketCommodity> commodities,
+            string iconSprite = null)
         {
             Title = title ?? throw new ArgumentNullException(nameof(title));
             Commodities = commodities ?? throw new ArgumentNullException(nameof(commodities));
+            IconSprite = iconSprite;
         }
     }
 
-    public sealed class CargoCommodity
+    public class CargoItemStack
     {
-        public Commodity Commodity { get; }
+        public ICargoItem Item { get; }
         public int Amount { get; set; }
 
-        public CargoCommodity(Commodity commodity, int amount)
+        public CargoItemStack(ICargoItem item, int amount)
         {
-            Commodity = commodity ?? throw new ArgumentNullException(nameof(commodity));
+            Item = item ?? throw new ArgumentNullException(nameof(item));
             Amount = amount;
+        }
+    }
+
+    public sealed class CargoCommodity : CargoItemStack
+    {
+        public Commodity Commodity => (Commodity)Item;
+
+        public CargoCommodity(Commodity commodity, int amount)
+            : base(commodity, amount)
+        {
         }
     }
 
@@ -143,6 +195,7 @@ namespace TalesOfTheBrave.Simulation.Entities
 
         public IReadOnlyDictionary<Commodity, int> Changes => changes;
         public bool HasChanges => changes.Count > 0;
+        public int GoldChange => -GetSelectedCost();
 
         public int GetChange(Commodity commodity) =>
             changes.TryGetValue(commodity, out var amount) ? amount : 0;
@@ -155,13 +208,12 @@ namespace TalesOfTheBrave.Simulation.Entities
             if (requestedAmount <= 0) return 0;
             var commodity = marketCommodity.Commodity;
             var existing = GetChange(commodity);
-            prices[commodity] = marketCommodity.CurrentPrice;
             if (existing < 0)
             {
                 var cancelledSale = Math.Min(requestedAmount, -existing);
                 existing += cancelledSale;
                 requestedAmount -= cancelledSale;
-                SetChange(commodity, existing);
+                SetChange(commodity, existing, marketCommodity);
                 if (requestedAmount == 0) return cancelledSale;
             }
             var projectedCargo = transport.CurrentCargoAmount + changes.Values.Sum();
@@ -171,14 +223,14 @@ namespace TalesOfTheBrave.Simulation.Entities
             var availableStock = marketCommodity.CurrentAmount - existing - marketMinimum;
             var cargoSpace = transport.MaxCargoAmount - projectedCargo;
             var selectedCost = GetSelectedCost();
-            var affordable = marketCommodity.CurrentPrice <= 0
+            var affordable = marketCommodity.BuyPrice <= 0
                 ? requestedAmount
                 : Math.Max(0, transport.CurrentGold - selectedCost) /
-                  marketCommodity.CurrentPrice;
+                  marketCommodity.BuyPrice;
             var amount = Math.Max(
                 0,
                 Math.Min(requestedAmount, Math.Min(availableStock, Math.Min(cargoSpace, affordable))));
-            SetChange(commodity, existing + amount);
+            SetChange(commodity, existing + amount, marketCommodity);
             return amount;
         }
 
@@ -190,13 +242,12 @@ namespace TalesOfTheBrave.Simulation.Entities
             if (requestedAmount <= 0) return 0;
             var commodity = marketCommodity.Commodity;
             var existing = GetChange(commodity);
-            prices[commodity] = marketCommodity.CurrentPrice;
             if (existing > 0)
             {
                 var cancelledPurchase = Math.Min(requestedAmount, existing);
                 existing -= cancelledPurchase;
                 requestedAmount -= cancelledPurchase;
-                SetChange(commodity, existing);
+                SetChange(commodity, existing, marketCommodity);
                 if (requestedAmount == 0) return cancelledPurchase;
             }
             var cargoAmount = transport.GetCargoAmount(commodity);
@@ -208,7 +259,7 @@ namespace TalesOfTheBrave.Simulation.Entities
             var amount = Math.Max(
                 0,
                 Math.Min(requestedAmount, Math.Min(cargoAmount - selectedSales, marketSpace)));
-            SetChange(commodity, existing - amount);
+            SetChange(commodity, existing - amount, marketCommodity);
             return amount;
         }
 
@@ -239,10 +290,23 @@ namespace TalesOfTheBrave.Simulation.Entities
         private int GetSelectedCost() =>
             changes.Sum(entry => entry.Value * prices[entry.Key]);
 
-        private void SetChange(Commodity commodity, int amount)
+        private void SetChange(
+            Commodity commodity,
+            int amount,
+            MarketCommodity marketCommodity)
         {
-            if (amount == 0) changes.Remove(commodity);
-            else changes[commodity] = amount;
+            if (amount == 0)
+            {
+                changes.Remove(commodity);
+                prices.Remove(commodity);
+            }
+            else
+            {
+                changes[commodity] = amount;
+                prices[commodity] = amount > 0
+                    ? marketCommodity.BuyPrice
+                    : marketCommodity.SellPrice;
+            }
         }
     }
 }

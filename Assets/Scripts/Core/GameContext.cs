@@ -3,6 +3,8 @@ using TalesOfTheBrave.Simulation.Movement;
 using TalesOfTheBrave.Simulation.Time;
 using TalesOfTheBrave.Simulation.World;
 using TalesOfTheBrave.Simulation.Entities;
+using TalesOfTheBrave.Simulation.Economy;
+using TalesOfTheBrave.Simulation.Rulesets;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -18,6 +20,7 @@ namespace TalesOfTheBrave.Simulation.Core
         public WorldGraph World { get; }
         public MovementManager Movement { get; }
         public Chronicler Chronicler { get; }
+        public EconomyManager Economy { get; }
         public Transport PlayerShip => Movement.GetTransport(playerShipId);
         public IReadOnlyList<Entity> Entities { get; }
         public IReadOnlyDictionary<string, Commodity> Commodities { get; }
@@ -29,7 +32,8 @@ namespace TalesOfTheBrave.Simulation.Core
             Chronicler chronicler,
             string playerShipId = PlayerShipId,
             IReadOnlyList<Entity> entities = null,
-            IReadOnlyDictionary<string, Commodity> commodities = null)
+            IReadOnlyDictionary<string, Commodity> commodities = null,
+            EconomyManager economy = null)
         {
             Time = time;
             World = world;
@@ -38,6 +42,9 @@ namespace TalesOfTheBrave.Simulation.Core
             this.playerShipId = playerShipId;
             Entities = entities ?? new List<Entity>();
             Commodities = commodities ?? new Dictionary<string, Commodity>();
+            Economy = economy ?? new EconomyManager(
+                Entities.SelectMany(entity => entity.Behaviors.OfType<MarketBehavior>()),
+                new EconomySystemDefinition());
         }
 
         public Entity GetLocationAtNode(string nodeId) => Entities.SingleOrDefault(entity =>
@@ -110,6 +117,7 @@ namespace TalesOfTheBrave.Simulation.Core
 
         public void ProcessDay(GameDate date)
         {
+            Economy.ProcessDay();
             Movement.ProcessDay();
         }
     }

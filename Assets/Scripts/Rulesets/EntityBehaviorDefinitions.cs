@@ -55,23 +55,33 @@ namespace TalesOfTheBrave.Simulation.Rulesets
     public sealed class LocationBehaviorDefinition
     {
         public string LocationViewSprite;
+        public string Description;
         public LocationBehaviorDefinition() { }
-        public LocationBehaviorDefinition(string locationViewSprite) => LocationViewSprite = locationViewSprite;
+        public LocationBehaviorDefinition(
+            string locationViewSprite,
+            string description = null)
+        {
+            LocationViewSprite = locationViewSprite;
+            Description = description;
+        }
     }
 
     [Serializable]
     public sealed class MarketBehaviorDefinition
     {
         public string Title = "Market";
+        public string IconSprite;
         public List<MarketCommodityDefinition> Commodities = new List<MarketCommodityDefinition>();
 
         public MarketBehaviorDefinition() { }
 
         public MarketBehaviorDefinition(
             IEnumerable<string> commodityNames,
-            string title = "Market")
+            string title = "Market",
+            string iconSprite = null)
         {
             Title = title;
+            IconSprite = iconSprite;
             if (commodityNames == null) return;
             foreach (var commodityName in commodityNames)
                 Commodities.Add(new MarketCommodityDefinition(commodityName));

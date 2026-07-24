@@ -31,8 +31,11 @@ namespace TalesOfTheBrave.Simulation.Rulesets
                 throw new InvalidOperationException(
                     $"World definition references missing scene background sprite '{definition.SceneBackgroundSprite}'.");
             ValidateTimeSystem(definition.TimeSystem);
+            ValidateEconomySystem(definition.Economy);
             ValidateUiSystem(definition.UI);
-            var commodityNames = ValidateCommodities(definition.Commodities);
+            var commodityNames = ValidateCommodities(
+                definition.Commodities,
+                spriteLookup);
 
             var allIds = new HashSet<string>(StringComparer.Ordinal);
             var nodeIds = new HashSet<string>(StringComparer.Ordinal);
@@ -97,14 +100,15 @@ namespace TalesOfTheBrave.Simulation.Rulesets
                         : !spriteLookup.ContainsSprite(behaviors.LocationBehavior.LocationViewSprite)))
                     throw new InvalidOperationException(
                         $"Location entity '{entity.Id}' references missing location view sprite '{behaviors.LocationBehavior.LocationViewSprite}'.");
-                ValidateMarket(entity, commodityNames);
+                ValidateMarket(entity, commodityNames, spriteLookup);
             }
             if (playerControlledCount != 1)
                 throw new InvalidOperationException("Exactly one player-controlled entity is required.");
         }
 
         private static HashSet<string> ValidateCommodities(
-            IEnumerable<CommodityDefinition> commodities)
+            IEnumerable<CommodityDefinition> commodities,
+            ISpriteNameLookup spriteLookup)
         {
             var names = new HashSet<string>(StringComparer.Ordinal);
             foreach (var commodity in commodities)
@@ -121,13 +125,18 @@ namespace TalesOfTheBrave.Simulation.Rulesets
                     string.IsNullOrWhiteSpace(commodity.Unit.Abbreviation))
                     throw new InvalidOperationException(
                         $"Commodity '{commodity.Name}' requires a complete unit definition.");
+                ValidateOptionalSprite(
+                    commodity.IconSprite,
+                    spriteLookup,
+                    $"Commodity '{commodity.Name}'");
             }
             return names;
         }
 
         private static void ValidateMarket(
             EntityDefinition entity,
-            HashSet<string> commodityNames)
+            HashSet<string> commodityNames,
+            ISpriteNameLookup spriteLookup)
         {
             var market = entity.Behaviors.MarketBehavior;
             if (market == null) return;
@@ -136,6 +145,10 @@ namespace TalesOfTheBrave.Simulation.Rulesets
                     $"Market entity '{entity.Id}' must also be a location.");
             if (string.IsNullOrWhiteSpace(market.Title))
                 throw new InvalidOperationException($"Market entity '{entity.Id}' requires a title.");
+            ValidateOptionalSprite(
+                market.IconSprite,
+                spriteLookup,
+                $"Market entity '{entity.Id}'");
             if (market.Commodities == null)
                 throw new InvalidOperationException(
                     $"Market entity '{entity.Id}' requires a commodity list.");
@@ -158,6 +171,11 @@ namespace TalesOfTheBrave.Simulation.Rulesets
                     commodity.MaxAmountPercentage < commodity.MinAmountPercentage)
                     throw new InvalidOperationException(
                         $"Market commodity '{commodity.CommodityName}' has invalid amount percentages.");
+                if (commodity.MinAmountPercentage >= 90f ||
+                    commodity.MaxAmountPercentage <= 110f)
+                    throw new InvalidOperationException(
+                        $"Market commodity '{commodity.CommodityName}' minimum and maximum percentages " +
+                        "must remain outside the 90-110 normal-price range.");
                 if (commodity.Consumption < 0 || commodity.Production < 0)
                     throw new InvalidOperationException(
                         $"Market commodity '{commodity.CommodityName}' cannot have negative production or consumption.");
@@ -167,6 +185,17 @@ namespace TalesOfTheBrave.Simulation.Rulesets
                     throw new InvalidOperationException(
                         $"Market commodity '{commodity.CommodityName}' must have a positive normal price coefficient.");
             }
+        }
+
+        private static void ValidateOptionalSprite(
+            string spriteName,
+            ISpriteNameLookup spriteLookup,
+            string owner)
+        {
+            if (string.IsNullOrWhiteSpace(spriteName) || spriteLookup == null) return;
+            if (!spriteLookup.ContainsSprite(spriteName))
+                throw new InvalidOperationException(
+                    $"{owner} references missing icon sprite '{spriteName}'.");
         }
 
         private static void ValidateTimeSystem(TimeSystemDefinition time)
@@ -190,6 +219,30 @@ namespace TalesOfTheBrave.Simulation.Rulesets
             }
         }
 
+        private static void ValidateEconomySystem(EconomySystemDefinition economy)
+        {
+            if (economy == null)
+                throw new InvalidOperationException("An economy system definition is required.");
+            if (economy.DailyPriceAdjustmentRate <= 0f ||
+                economy.DailyPriceAdjustmentRate > 1f ||
+                float.IsNaN(economy.DailyPriceAdjustmentRate))
+                throw new InvalidOperationException(
+                    "Economy daily price adjustment rate must be between zero and one.");
+            if (economy.MinimumDailyPriceAdjustment < 0)
+                throw new InvalidOperationException(
+                    "Economy minimum daily price adjustment cannot be negative.");
+            if (economy.RandomPriceFluctuationPercentage < 0f ||
+                float.IsNaN(economy.RandomPriceFluctuationPercentage) ||
+                float.IsInfinity(economy.RandomPriceFluctuationPercentage))
+                throw new InvalidOperationException(
+                    "Economy random price fluctuation cannot be negative.");
+            if (economy.BuySellSpreadPercentage < 0f ||
+                economy.BuySellSpreadPercentage >= 100f ||
+                float.IsNaN(economy.BuySellSpreadPercentage))
+                throw new InvalidOperationException(
+                    "Economy buy/sell spread must be between zero and 100 percent.");
+        }
+
         private static void ValidateUiSystem(UiSystemDefinition ui)
         {
             if (ui == null) throw new InvalidOperationException("A UI definition is required.");
@@ -203,6 +256,7 @@ namespace TalesOfTheBrave.Simulation.Rulesets
             ValidateColor(ui.Tooltips.Background, true, "tooltip background");
             ValidateColor(ui.Tooltips.Border, false, "tooltip border");
             ValidateColor(ui.Tooltips.Font, false, "tooltip font");
+            ValidateColor(ui.MarketNormalStock, false, "market normal stock");
             ValidateBorderWidth(ui.Tooltips.BorderWidth, "tooltip");
         }
 

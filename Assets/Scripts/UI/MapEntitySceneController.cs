@@ -35,8 +35,13 @@ namespace TalesOfTheBrave.Unity.UI
         private bool isCenteringMap;
         private bool isDraggingMap;
         private bool mapDragMoved;
+        private Vector2 dragStartPosition;
         private Vector2 lastDragPosition;
         private string pressedNodeId;
+        private string lastClickedNodeId;
+        private float lastNodeClickTime = -1f;
+        private float suppressHoverUntil;
+        private bool touchInputDetected;
         private Texture2D highlightTexture;
         private Sprite highlightSprite;
         private Texture2D mapMaskTexture;
@@ -228,8 +233,16 @@ namespace TalesOfTheBrave.Unity.UI
 
             var currentEvent = Event.current;
             var mousePosition = currentEvent.mousePosition;
+            if (Input.touchCount > 0)
+            {
+                touchInputDetected = true;
+                suppressHoverUntil = UnityEngine.Time.unscaledTime + 0.5f;
+            }
             var insideViewport = IsInsideMapViewport(mousePosition);
-            hoveredNodeId = insideViewport && !isDraggingMap
+            hoveredNodeId = insideViewport &&
+                            !isDraggingMap &&
+                            !touchInputDetected &&
+                            UnityEngine.Time.unscaledTime >= suppressHoverUntil
                 ? FindNodeAtGuiPosition(mousePosition)
                 : null;
             HoveredTooltip = string.IsNullOrWhiteSpace(hoveredNodeId)
@@ -246,8 +259,9 @@ namespace TalesOfTheBrave.Unity.UI
                 {
                     isDraggingMap = true;
                     mapDragMoved = false;
+                    dragStartPosition = mousePosition;
                     lastDragPosition = mousePosition;
-                    pressedNodeId = hoveredNodeId;
+                    pressedNodeId = FindNodeAtGuiPosition(mousePosition);
                     currentEvent.Use();
                 }
             }
@@ -256,7 +270,8 @@ namespace TalesOfTheBrave.Unity.UI
                      isDraggingMap)
             {
                 var delta = mousePosition - lastDragPosition;
-                if (delta.sqrMagnitude > 0.25f) mapDragMoved = true;
+                if ((mousePosition - dragStartPosition).sqrMagnitude > 36f)
+                    mapDragMoved = true;
                 PanMap(delta);
                 lastDragPosition = mousePosition;
                 currentEvent.Use();
@@ -268,7 +283,19 @@ namespace TalesOfTheBrave.Unity.UI
                 if (!mapDragMoved && pressedNodeId != null)
                 {
                     SelectedNodeId = pressedNodeId;
-                    if (currentEvent.clickCount >= 2) CenterOnNode(pressedNodeId);
+                    var now = UnityEngine.Time.unscaledTime;
+                    if (lastClickedNodeId == pressedNodeId &&
+                        now - lastNodeClickTime <= 0.4f)
+                    {
+                        CenterOnNode(pressedNodeId);
+                        lastClickedNodeId = null;
+                        lastNodeClickTime = -1f;
+                    }
+                    else
+                    {
+                        lastClickedNodeId = pressedNodeId;
+                        lastNodeClickTime = now;
+                    }
                 }
                 isDraggingMap = false;
                 pressedNodeId = null;

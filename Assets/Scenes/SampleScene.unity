@@ -436,6 +436,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: TalesOfTheBrave::TalesOfTheBrave.Graphics.ExternalGraphicsCatalog
   entries:
+  - name: commodity_icons.0
+    sprite: {fileID: 6698751802684237560, guid: bd6854b258275be4abb989b98b3275c9, type: 3}
+  - name: commodity_icons.1
+    sprite: {fileID: 3356406352467411781, guid: bd6854b258275be4abb989b98b3275c9, type: 3}
+  - name: commodity_icons.2
+    sprite: {fileID: -7074252053010771938, guid: bd6854b258275be4abb989b98b3275c9, type: 3}
+  - name: commodity_icons.3
+    sprite: {fileID: 7469384945778443050, guid: bd6854b258275be4abb989b98b3275c9, type: 3}
   - name: icons.0
     sprite: {fileID: -2978653956524333172, guid: 6a4e641a6c9b88a4587aa481c49a1d39, type: 3}
   - name: icons.1
@@ -476,6 +484,14 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: c2972fcfeacc1f04395dd322e59321fd, type: 3}
   - name: img-stockholm
     sprite: {fileID: 21300000, guid: 2fd1d02ae954d6c468ac92fecabd5e9d, type: 3}
+  - name: location-actions.0
+    sprite: {fileID: 6066177251189312429, guid: 074c2b4036a9c1e45b3cc5504bdfb46f, type: 3}
+  - name: location-actions.1
+    sprite: {fileID: 4085287194195841289, guid: 074c2b4036a9c1e45b3cc5504bdfb46f, type: 3}
+  - name: location-actions.2
+    sprite: {fileID: 6760538200826546568, guid: 074c2b4036a9c1e45b3cc5504bdfb46f, type: 3}
+  - name: location-actions.3
+    sprite: {fileID: -4442689927680279194, guid: 074c2b4036a9c1e45b3cc5504bdfb46f, type: 3}
   - name: map
     sprite: {fileID: 21300000, guid: cee49eda1d1be5148a5368bfe49f899e, type: 3}
   - name: window-location

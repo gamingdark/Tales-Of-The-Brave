@@ -6,6 +6,7 @@ using TalesOfTheBrave.Simulation.Time;
 using TalesOfTheBrave.Simulation.World;
 using TalesOfTheBrave.Simulation.Entities;
 using System.Collections.Generic;
+using TalesOfTheBrave.Simulation.Economy;
 
 namespace TalesOfTheBrave.Simulation.Core
 {
@@ -34,7 +35,8 @@ namespace TalesOfTheBrave.Simulation.Core
                     commodity.Name,
                     commodity.DefaultPrice,
                     commodity.Unit.FullName,
-                    commodity.Unit.Abbreviation),
+                    commodity.Unit.Abbreviation,
+                    commodity.IconSprite),
                 System.StringComparer.Ordinal);
 
             foreach (var node in definition.Nodes)
@@ -56,7 +58,10 @@ namespace TalesOfTheBrave.Simulation.Core
 
             var entities = new List<Entity>();
             foreach (var entityDefinition in definition.Entities)
-                entities.Add(CreateEntity(entityDefinition, commodities));
+                entities.Add(CreateEntity(
+                    entityDefinition,
+                    commodities,
+                    definition.Economy.BuySellSpreadPercentage));
 
             var playerEntity = entities.Single(entity => entity.HasBehavior<PlayerControlledBehavior>());
             var movement = new MovementManager(world, nodeId => entities.Any(entity =>
@@ -66,8 +71,13 @@ namespace TalesOfTheBrave.Simulation.Core
             movement.Register(new Transport(playerEntity));
 
             var chronicler = new Chronicler();
+            var economy = new EconomyManager(
+                entities.SelectMany(entity =>
+                    entity.Behaviors.OfType<MarketBehavior>()),
+                definition.Economy);
             var context = new GameContext(
-                time, world, movement, chronicler, playerEntity.Id, entities, commodities);
+                time, world, movement, chronicler, playerEntity.Id, entities,
+                commodities, economy);
             time.DayAdvanced += context.ProcessDay;
             movement.VoyageStarted += (ship, from, to) => chronicler.Record(
                 time.CurrentDate,
@@ -86,7 +96,8 @@ namespace TalesOfTheBrave.Simulation.Core
 
         private static Entity CreateEntity(
             EntityDefinition definition,
-            IReadOnlyDictionary<string, Commodity> commodities)
+            IReadOnlyDictionary<string, Commodity> commodities,
+            float buySellSpreadPercentage)
         {
             var entity = new Entity(definition.Id, definition.DisplayName);
             var behaviors = definition.Behaviors;
@@ -104,6 +115,7 @@ namespace TalesOfTheBrave.Simulation.Core
             if (behaviors.LocationBehavior != null)
                 entity.AddBehavior(new LocationBehavior(
                     behaviors.LocationBehavior.LocationViewSprite,
+                    behaviors.LocationBehavior.Description,
                     definition.Id,
                     definition.DisplayName));
             if (behaviors.MarketBehavior != null)
@@ -117,8 +129,10 @@ namespace TalesOfTheBrave.Simulation.Core
                             marketCommodity.MinAmountPercentage,
                             marketCommodity.Consumption,
                             marketCommodity.Production,
-                            marketCommodity.NormalPriceCoefficient))
-                        .ToArray()));
+                            marketCommodity.NormalPriceCoefficient,
+                            buySellSpreadPercentage))
+                        .ToArray(),
+                    behaviors.MarketBehavior.IconSprite));
             return entity;
         }
     }

@@ -13,8 +13,15 @@ namespace TalesOfTheBrave.Simulation.Movement
         public float SpeedPerDay => entity.GetBehavior<TransportBehavior>().SpeedPerDay;
         public int MaxCargoAmount => entity.GetBehavior<TransportBehavior>().MaxCargoAmount;
         public int CurrentGold => entity.GetBehavior<TransportBehavior>().CurrentGold;
-        public List<CargoCommodity> CurrentCargo { get; } = new List<CargoCommodity>();
-        public int CurrentCargoAmount => CurrentCargo.Sum(cargo => cargo.Amount);
+        public List<CargoCommodity> Wares { get; } = new List<CargoCommodity>();
+        public List<CargoItemStack> Supplies { get; } = new List<CargoItemStack>();
+        public List<CargoItemStack> Restricted { get; } = new List<CargoItemStack>();
+        // Compatibility alias while callers migrate to the named cargo sections.
+        public List<CargoCommodity> CurrentCargo => Wares;
+        public int CurrentCargoAmount =>
+            Wares.Sum(cargo => cargo.Amount) +
+            Supplies.Sum(cargo => cargo.Amount) +
+            Restricted.Sum(cargo => cargo.Amount);
         public TravelState Travel { get; }
         public string MapIconSprite => entity.GetBehavior<DrawableBehavior>().MapIconSprite;
         public Entity Entity => entity;
@@ -30,24 +37,24 @@ namespace TalesOfTheBrave.Simulation.Movement
         }
 
         public int GetCargoAmount(Commodity commodity) =>
-            CurrentCargo.FirstOrDefault(cargo => cargo.Commodity == commodity)?.Amount ?? 0;
+            Wares.FirstOrDefault(cargo => cargo.Commodity == commodity)?.Amount ?? 0;
 
         public void ChangeCargo(Commodity commodity, int amount)
         {
-            var cargo = CurrentCargo.FirstOrDefault(entry => entry.Commodity == commodity);
+            var cargo = Wares.FirstOrDefault(entry => entry.Commodity == commodity);
             if (cargo == null)
             {
                 if (amount < 0) throw new InvalidOperationException("Not enough cargo to sell.");
                 if (amount == 0) return;
                 cargo = new CargoCommodity(commodity, 0);
-                CurrentCargo.Add(cargo);
+                Wares.Add(cargo);
             }
             if (cargo.Amount + amount < 0)
                 throw new InvalidOperationException("Not enough cargo to sell.");
             if (CurrentCargoAmount + amount > MaxCargoAmount)
                 throw new InvalidOperationException("Cargo capacity would be exceeded.");
             cargo.Amount += amount;
-            if (cargo.Amount == 0) CurrentCargo.Remove(cargo);
+            if (cargo.Amount == 0) Wares.Remove(cargo);
         }
 
         public void ChangeGold(int amount)

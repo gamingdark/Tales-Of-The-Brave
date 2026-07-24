@@ -14,6 +14,7 @@ namespace TalesOfTheBrave.Simulation.Rulesets
         public List<EntityDefinition> Entities = new List<EntityDefinition>();
         public List<CommodityDefinition> Commodities = new List<CommodityDefinition>();
         public TimeSystemDefinition TimeSystem = new TimeSystemDefinition();
+        public EconomySystemDefinition Economy = new EconomySystemDefinition();
         public UiSystemDefinition UI = UiSystemDefinition.CreateDefault();
         public string MapBackgroundSprite = "map";
         public string SceneBackgroundSprite = "wooden-background";
@@ -26,10 +27,10 @@ namespace TalesOfTheBrave.Simulation.Rulesets
             {
                 Commodities = new List<CommodityDefinition>
                 {
-                    new CommodityDefinition("Timber", 10),
-                    new CommodityDefinition("Grain", 8),
-                    new CommodityDefinition("Tar", 20, new CommodityUnitDefinition("liters", "l")),
-                    new CommodityDefinition("Iron", 25)
+                    new CommodityDefinition("Timber", 10, iconSprite: "commodity_icons.1"),
+                    new CommodityDefinition("Grain", 8, iconSprite: "commodity_icons.2"),
+                    new CommodityDefinition("Tar", 20, new CommodityUnitDefinition("liters", "l"), "commodity_icons.0"),
+                    new CommodityDefinition("Iron", 25, iconSprite: "commodity_icons.3")
                 },
                 Nodes = new List<WorldNodeDefinition>
                 {
@@ -74,13 +75,13 @@ namespace TalesOfTheBrave.Simulation.Rulesets
                 Entities = new List<EntityDefinition>
                 {
                     CreateLocation("location_klaipeda", "Klaipėda", "node_klaipeda", "icons.4", "img-klaipeda",
-                        "Grain", "Timber"),
+                        "location-actions.0", "Grain", "Timber"),
                     CreateLocation("location_riga", "Riga", "node_riga", "icons.3", "img-riga",
-                        "Tar", "Grain", "Timber"),
+                        "location-actions.1", "Tar", "Grain", "Timber"),
                     CreateLocation("location_helsinki", "Helsinki", "node_helsinki", "icons.5", "img-helsinki",
-                        "Tar", "Timber", "Iron"),
+                        "location-actions.2", "Tar", "Timber", "Iron"),
                     CreateLocation("location_stockholm", "Stockholm", "node_stockholm", "icons.7", "img-stockholm",
-                        "Iron", "Timber", "Grain"),
+                        "location-actions.3", "Iron", "Timber", "Grain"),
                     new PlayerShipDefinition(
                         GameContext.PlayerShipId, "The Unsinkable", 25f, "node_klaipeda", "icons.8")
                 }
@@ -93,16 +94,31 @@ namespace TalesOfTheBrave.Simulation.Rulesets
             string startingNodeId,
             string mapIconSprite,
             string locationViewSprite,
+            string marketIconSprite,
             params string[] marketCommodities)
         {
             return new EntityDefinition(id, displayName, new EntityBehaviorsDefinition
             {
-                LocationBehavior = new LocationBehaviorDefinition(locationViewSprite),
-                MarketBehavior = new MarketBehaviorDefinition(marketCommodities),
+                LocationBehavior = new LocationBehaviorDefinition(
+                    locationViewSprite,
+                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " +
+                    "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."),
+                MarketBehavior = new MarketBehaviorDefinition(
+                    marketCommodities,
+                    iconSprite: marketIconSprite),
                 DrawableBehavior = new DrawableBehaviorDefinition(mapIconSprite),
                 WorldEntityBehavior = new WorldEntityBehaviorDefinition(startingNodeId)
             });
         }
+    }
+
+    [Serializable]
+    public sealed class EconomySystemDefinition
+    {
+        public float DailyPriceAdjustmentRate = 0.2f;
+        public int MinimumDailyPriceAdjustment = 1;
+        public float RandomPriceFluctuationPercentage = 5f;
+        public float BuySellSpreadPercentage = 5f;
     }
 
     [Serializable]
@@ -125,16 +141,19 @@ namespace TalesOfTheBrave.Simulation.Rulesets
         public string Name;
         public int DefaultPrice;
         public CommodityUnitDefinition Unit = new CommodityUnitDefinition();
+        public string IconSprite;
 
         public CommodityDefinition() { }
         public CommodityDefinition(
             string name,
             int defaultPrice,
-            CommodityUnitDefinition unit = null)
+            CommodityUnitDefinition unit = null,
+            string iconSprite = null)
         {
             Name = name;
             DefaultPrice = defaultPrice;
             Unit = unit ?? new CommodityUnitDefinition();
+            IconSprite = iconSprite;
         }
     }
 
@@ -143,6 +162,7 @@ namespace TalesOfTheBrave.Simulation.Rulesets
     {
         public UiStyleDefinition Menus = new();
         public UiStyleDefinition Tooltips = new();
+        public Color MarketNormalStock = new Color(0.86f, 0.86f, 0.86f);
 
         public static UiSystemDefinition CreateDefault()
         {
@@ -161,7 +181,8 @@ namespace TalesOfTheBrave.Simulation.Rulesets
                     Border = new Color(0.08f, 0.08f, 0.08f),
                     BorderWidth = 2f,
                     Font = new Color(0.94f, 0.94f, 0.94f)
-                }
+                },
+                MarketNormalStock = new Color(0.86f, 0.86f, 0.86f)
             };
         }
     }

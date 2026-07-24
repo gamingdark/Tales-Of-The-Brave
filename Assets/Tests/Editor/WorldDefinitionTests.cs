@@ -8,6 +8,7 @@ using TalesOfTheBrave.Simulation.Entities;
 using TalesOfTheBrave.Simulation.Rulesets;
 using TalesOfTheBrave.Simulation.World;
 using TalesOfTheBrave.Simulation.Time;
+using TalesOfTheBrave.Simulation.Economy;
 
 public sealed class WorldDefinitionTests
 {
@@ -150,8 +151,32 @@ public sealed class WorldDefinitionTests
         var sprites = new SpriteNames(
             "icons.3", "icons.4", "icons.5", "icons.7", "icons.8",
             "img-klaipeda", "img-riga", "img-helsinki", "img-stockholm",
+            "commodity_icons.0", "commodity_icons.1",
+            "commodity_icons.2", "commodity_icons.3",
+            "location-actions.0", "location-actions.1",
+            "location-actions.2", "location-actions.3",
             "map", "wooden-background");
         Assert.DoesNotThrow(() => WorldDefinitionValidator.Validate(WorldDefinition.CreateDefault(), sprites));
+    }
+
+    [Test]
+    public void DefaultLocationActionsAndCommoditiesHaveTemporaryIcons()
+    {
+        var definition = WorldDefinition.CreateDefault();
+
+        Assert.That(
+            definition.Commodities.All(commodity =>
+                !string.IsNullOrWhiteSpace(commodity.IconSprite)),
+            Is.True);
+        Assert.That(
+            definition.Entities
+                .Where(entity => entity.Behaviors.LocationBehavior != null)
+                .All(entity =>
+                    !string.IsNullOrWhiteSpace(
+                        entity.Behaviors.LocationBehavior.Description) &&
+                    !string.IsNullOrWhiteSpace(
+                        entity.Behaviors.MarketBehavior.IconSprite)),
+            Is.True);
     }
 
     [Test]
@@ -369,7 +394,9 @@ public sealed class WorldDefinitionTests
     [Test]
     public void MarketPurchaseIsPendingUntilCommitted()
     {
-        var game = GameFactory.Create();
+        var definition = WorldDefinition.CreateDefault();
+        definition.Economy.BuySellSpreadPercentage = 0f;
+        var game = GameFactory.Create(definition);
         var market = game.Entities
             .Single(entity => entity.Id == "location_klaipeda")
             .GetBehavior<MarketBehavior>();
@@ -379,6 +406,7 @@ public sealed class WorldDefinitionTests
         var selected = selection.SelectBuy(game.PlayerShip, grain, 10);
 
         Assert.That(selected, Is.EqualTo(10));
+        Assert.That(selection.GoldChange, Is.EqualTo(-1000));
         Assert.That(game.PlayerShip.CurrentCargoAmount, Is.Zero);
         Assert.That(game.PlayerShip.CurrentGold, Is.EqualTo(1000));
         Assert.That(grain.CurrentAmount, Is.EqualTo(100));
@@ -414,7 +442,9 @@ public sealed class WorldDefinitionTests
     [Test]
     public void MarketSaleCapsAtCargoAndMaximumStock()
     {
-        var game = GameFactory.Create();
+        var definition = WorldDefinition.CreateDefault();
+        definition.Economy.BuySellSpreadPercentage = 0f;
+        var game = GameFactory.Create(definition);
         var market = game.Entities
             .Single(entity => entity.Id == "location_klaipeda")
             .GetBehavior<MarketBehavior>();
@@ -428,6 +458,208 @@ public sealed class WorldDefinitionTests
         Assert.That(game.PlayerShip.GetCargoAmount(grain.Commodity), Is.EqualTo(50));
         Assert.That(grain.CurrentAmount, Is.EqualTo(200));
         Assert.That(game.PlayerShip.CurrentGold, Is.EqualTo(11000));
+    }
+
+    [Test]
+    public void EconomyUpdatesStockAndPriceBeforeTheNewDaySimulation()
+    {
+        var definition = WorldDefinition.CreateDefault();
+        ConfigureImmediateDeterministicPrices(definition);
+        var grainDefinition = definition.Entities
+            .Single(entity => entity.Id == "location_klaipeda")
+            .Behaviors.MarketBehavior.Commodities
+            .Single(commodity => commodity.CommodityName == "Grain");
+        grainDefinition.Consumption = 75;
+        grainDefinition.Production = 0;
+        var game = GameFactory.Create(definition);
+        var grain = game.Entities
+            .Single(entity => entity.Id == "location_klaipeda")
+            .GetBehavior<MarketBehavior>().Commodities
+            .Single(commodity => commodity.Commodity.Name == "Grain");
+
+        game.Time.AdvanceDay();
+
+        Assert.That(grain.CurrentAmount, Is.EqualTo(25));
+        Assert.That(grain.CurrentPrice, Is.EqualTo(200));
+    }
+
+    [Test]
+    public void EconomyCapsMaximumStockAndUsesDesperateSellingPrice()
+    {
+        var definition = WorldDefinition.CreateDefault();
+        ConfigureImmediateDeterministicPrices(definition);
+        var grainDefinition = definition.Entities
+            .Single(entity => entity.Id == "location_klaipeda")
+            .Behaviors.MarketBehavior.Commodities
+            .Single(commodity => commodity.CommodityName == "Grain");
+        grainDefinition.Consumption = 0;
+        grainDefinition.Production = 500;
+        var game = GameFactory.Create(definition);
+        var grain = game.Entities
+            .Single(entity => entity.Id == "location_klaipeda")
+            .GetBehavior<MarketBehavior>().Commodities
+            .Single(commodity => commodity.Commodity.Name == "Grain");
+
+        game.Time.AdvanceDay();
+
+        Assert.That(grain.CurrentAmount, Is.EqualTo(200));
+        Assert.That(grain.CurrentPrice, Is.EqualTo(50));
+    }
+
+    [Test]
+    public void IntradayTradeDoesNotRecalculatePriceUntilNextDay()
+    {
+        var definition = WorldDefinition.CreateDefault();
+        ConfigureImmediateDeterministicPrices(definition);
+        definition.Entities
+            .Single(entity => entity.Behaviors.PlayerControlledBehavior != null)
+            .Behaviors.TransportBehavior.CurrentGold = 100000;
+        var game = GameFactory.Create(definition);
+        var market = game.Entities
+            .Single(entity => entity.Id == "location_klaipeda")
+            .GetBehavior<MarketBehavior>();
+        var grain = market.Commodities.Single(
+            commodity => commodity.Commodity.Name == "Grain");
+        var selection = new MarketTradeSelection();
+
+        selection.SelectBuy(game.PlayerShip, grain, 50);
+        selection.Commit(game.PlayerShip, market);
+
+        Assert.That(grain.CurrentAmount, Is.EqualTo(50));
+        Assert.That(grain.CurrentPrice, Is.EqualTo(100));
+
+        game.Time.AdvanceDay();
+
+        Assert.That(grain.CurrentPrice, Is.EqualTo(200));
+    }
+
+    [Test]
+    public void EconomyPriceCurveGetsSteeperTowardMinimum()
+    {
+        var commodity = new Commodity("Test", 100, "tonnes", "t");
+        var marketCommodity = new MarketCommodity(
+            commodity, 100, 200f, 50f, 0, 0, 1f);
+        marketCommodity.CurrentAmount = 75;
+
+        Assert.That(EconomyManager.CalculatePrice(marketCommodity), Is.EqualTo(114));
+    }
+
+    [Test]
+    public void EconomyMovesGraduallyTowardDesiredPrice()
+    {
+        var definition = WorldDefinition.CreateDefault();
+        definition.Economy.DailyPriceAdjustmentRate = 0.2f;
+        definition.Economy.MinimumDailyPriceAdjustment = 1;
+        definition.Economy.RandomPriceFluctuationPercentage = 0f;
+        var grainDefinition = definition.Entities
+            .Single(entity => entity.Id == "location_klaipeda")
+            .Behaviors.MarketBehavior.Commodities
+            .Single(commodity => commodity.CommodityName == "Grain");
+        grainDefinition.Consumption = 75;
+        grainDefinition.Production = 0;
+        var game = GameFactory.Create(definition);
+        var grain = game.Entities
+            .Single(entity => entity.Id == "location_klaipeda")
+            .GetBehavior<MarketBehavior>().Commodities
+            .Single(commodity => commodity.Commodity.Name == "Grain");
+
+        game.Time.AdvanceDay();
+
+        Assert.That(grain.CurrentPrice, Is.EqualTo(120));
+    }
+
+    [Test]
+    public void EconomyRandomFluctuationStaysWithinConfiguredRange()
+    {
+        var commodity = new Commodity("Test", 100, "tonnes", "t");
+        var marketCommodity = new MarketCommodity(
+            commodity, 100, 200f, 50f, 0, 0, 1f);
+        var market = new MarketBehavior("Market", new[] { marketCommodity });
+        var economyDefinition = new EconomySystemDefinition
+        {
+            DailyPriceAdjustmentRate = 1f,
+            MinimumDailyPriceAdjustment = 0,
+            RandomPriceFluctuationPercentage = 5f
+        };
+        var economy = new EconomyManager(
+            new[] { market }, economyDefinition, new Random(1234));
+
+        economy.ProcessDay();
+
+        Assert.That(marketCommodity.CurrentPrice, Is.InRange(95, 105));
+    }
+
+    [Test]
+    public void MarketUsesConfiguredBuySellSpread()
+    {
+        var definition = WorldDefinition.CreateDefault();
+        definition.Economy.BuySellSpreadPercentage = 5f;
+        var game = GameFactory.Create(definition);
+        var market = game.Entities
+            .Single(entity => entity.Id == "location_klaipeda")
+            .GetBehavior<MarketBehavior>();
+        var grain = market.Commodities.Single(
+            commodity => commodity.Commodity.Name == "Grain");
+
+        Assert.That(grain.BuyPrice, Is.EqualTo(105));
+        Assert.That(grain.SellPrice, Is.EqualTo(95));
+    }
+
+    [Test]
+    public void CargoSectionsShareOneCapacityAndMarketsUseWares()
+    {
+        var game = GameFactory.Create();
+        var grain = game.Entities
+            .Single(entity => entity.Id == "location_klaipeda")
+            .GetBehavior<MarketBehavior>().Commodities
+            .Single(commodity => commodity.Commodity.Name == "Grain")
+            .Commodity;
+        game.PlayerShip.Supplies.Add(
+            new CargoItemStack(new TestCargoItem("Water", "barrels", "bbl"), 30));
+        game.PlayerShip.Restricted.Add(
+            new CargoItemStack(grain, 20));
+
+        game.PlayerShip.ChangeCargo(grain, 150);
+
+        Assert.That(game.PlayerShip.CurrentCargoAmount, Is.EqualTo(200));
+        Assert.That(game.PlayerShip.Wares.Single().Amount, Is.EqualTo(150));
+        Assert.That(game.PlayerShip.Supplies.Single().Amount, Is.EqualTo(30));
+        Assert.That(game.PlayerShip.Restricted.Single().Amount, Is.EqualTo(20));
+        Assert.Throws<InvalidOperationException>(
+            () => game.PlayerShip.ChangeCargo(grain, 1));
+    }
+
+    [TestCase(-0.1f, 5f, 5f)]
+    [TestCase(0.2f, -1f, 5f)]
+    [TestCase(0.2f, 5f, 100f)]
+    public void ValidationRejectsInvalidEconomyPricingSettings(
+        float adjustmentRate,
+        float fluctuation,
+        float spread)
+    {
+        var definition = WorldDefinition.CreateDefault();
+        definition.Economy.DailyPriceAdjustmentRate = adjustmentRate;
+        definition.Economy.RandomPriceFluctuationPercentage = fluctuation;
+        definition.Economy.BuySellSpreadPercentage = spread;
+
+        Assert.Throws<InvalidOperationException>(
+            () => GameFactory.Create(definition));
+    }
+
+    [TestCase(90f, 200f)]
+    [TestCase(50f, 110f)]
+    public void ValidationRejectsMarketLimitsInsideNormalPriceRange(
+        float minimum,
+        float maximum)
+    {
+        var definition = WorldDefinition.CreateDefault();
+        var commodity = definition.Entities
+            .Single(entity => entity.Id == "location_klaipeda")
+            .Behaviors.MarketBehavior.Commodities[0];
+        commodity.MinAmountPercentage = minimum;
+        commodity.MaxAmountPercentage = maximum;
+
+        AssertValidationFailure(definition, "outside the 90-110");
     }
 
     private static WorldDefinition CreateMinimalDefinition()
@@ -449,6 +681,33 @@ public sealed class WorldDefinitionTests
                 CreateLocation("location_b", "B", "node_b", "icons.location")
             }
         };
+    }
+
+    private static void ConfigureImmediateDeterministicPrices(
+        WorldDefinition definition)
+    {
+        definition.Economy.DailyPriceAdjustmentRate = 1f;
+        definition.Economy.MinimumDailyPriceAdjustment = 0;
+        definition.Economy.RandomPriceFluctuationPercentage = 0f;
+        definition.Economy.BuySellSpreadPercentage = 0f;
+    }
+
+    private sealed class TestCargoItem : ICargoItem
+    {
+        public string Name { get; }
+        public string UnitName { get; }
+        public string UnitAbbreviation { get; }
+        public string IconSprite => null;
+
+        public TestCargoItem(
+            string name,
+            string unitName,
+            string unitAbbreviation)
+        {
+            Name = name;
+            UnitName = unitName;
+            UnitAbbreviation = unitAbbreviation;
+        }
     }
 
     private static EntityDefinition CreatePlayer(string id, string nodeId, string sprite) =>

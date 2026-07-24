@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using TalesOfTheBrave.Simulation.Core;
 using TalesOfTheBrave.Simulation.Time;
@@ -89,15 +90,22 @@ namespace TalesOfTheBrave.Unity.UI
         private GUIStyle menuPanelStyle;
         private GUIStyle mapPanelStyle;
         private GUIStyle tooltipStyle;
+        private GUIStyle locationRowStyle;
+        private GUIStyle iconFrameStyle;
+        private GUIStyle portraitFrameStyle;
         private Texture2D menuPanelTexture;
         private Texture2D mapPanelTexture;
         private Texture2D tooltipTexture;
+        private Texture2D iconFrameTexture;
+        private Texture2D portraitFrameTexture;
         private UiSystemDefinition uiDefinition;
         private Vector2 chroniclerScroll;
         private ILocationAction selectedLocationAction;
         private MarketTradeSelection marketTradeSelection;
         private int tradeQuantity = 10;
         private string openLocationEntityId;
+        private float suppressTooltipUntil;
+        private bool touchInputDetected;
         private const float PanelContentPadding = 16f;
         private const float LocationPortraitInsetScale = 1.0f;
 
@@ -161,12 +169,37 @@ namespace TalesOfTheBrave.Unity.UI
             tooltipStyle = CreateRoundedPanelStyle(tooltipTexture);
             tooltipStyle.padding = new RectOffset(10, 10, 7, 7);
             tooltipStyle.wordWrap = true;
+            tooltipStyle.richText = true;
             tooltipStyle.normal.textColor = ToColor(uiDefinition.Tooltips.Font);
+            locationRowStyle = new GUIStyle(tooltipStyle)
+            {
+                padding = new RectOffset(8, 8, 6, 6)
+            };
+            locationRowStyle.hover.background = tooltipTexture;
+            locationRowStyle.active.background = tooltipTexture;
+            iconFrameTexture = CreateRoundedPanelTexture(
+                "Round Location Icon",
+                ToColor(uiDefinition.Tooltips.Background),
+                ToColor(uiDefinition.Tooltips.Border),
+                uiDefinition.Tooltips.BorderWidth,
+                15);
+            portraitFrameTexture = CreateRoundedPanelTexture(
+                "Rounded Location Portrait",
+                Color.clear,
+                ToColor(uiDefinition.Tooltips.Border),
+                uiDefinition.Tooltips.BorderWidth);
+            iconFrameStyle = CreateRoundedPanelStyle(iconFrameTexture);
+            portraitFrameStyle = CreateRoundedPanelStyle(portraitFrameTexture);
         }
 
         private void OnGUI()
         {
             if (context == null) return;
+            if (Input.touchCount > 0)
+            {
+                touchInputDetected = true;
+                suppressTooltipUntil = UnityEngine.Time.unscaledTime + 0.5f;
+            }
             EnsureStyles();
             var insideLocation = context.PlayerShip.Travel.IsInsideLocation;
             mapController?.SetMapVisible(!insideLocation);
@@ -254,10 +287,13 @@ namespace TalesOfTheBrave.Unity.UI
         }
 
         private static Texture2D CreateRoundedPanelTexture(
-            string textureName, Color fill, Color border, float configuredBorderWidth)
+            string textureName,
+            Color fill,
+            Color border,
+            float configuredBorderWidth,
+            int radius = 9)
         {
             const int size = 32;
-            const int radius = 9;
             var borderWidth = Mathf.Clamp(configuredBorderWidth, 0f, radius);
             var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
             {
@@ -514,8 +550,26 @@ namespace TalesOfTheBrave.Unity.UI
             var sprite = graphics.GetSprite(
                 location.GetBehavior<LocationBehavior>().LocationViewSprite);
             if (sprite != null)
-                GUI.DrawTexture(imageArea, sprite.texture, ScaleMode.ScaleToFit, true);
-            GUI.Label(titleArea, location.DisplayName, locationTitleStyle);
+                DrawSprite(Inset(imageArea, 5f), sprite, ScaleMode.ScaleToFit);
+            GUI.Box(imageArea, GUIContent.none, portraitFrameStyle);
+            var locationBehavior = location.GetBehavior<LocationBehavior>();
+            var nameArea = new Rect(
+                titleArea.x + 12f,
+                titleArea.y,
+                titleArea.width - 24f,
+                Mathf.Min(52f, titleArea.height * 0.42f));
+            var descriptionArea = new Rect(
+                nameArea.x,
+                nameArea.yMax,
+                nameArea.width,
+                Mathf.Max(0f, titleArea.yMax - nameArea.yMax));
+            GUI.Label(nameArea, location.DisplayName, locationTitleStyle);
+            var descriptionStyle = new GUIStyle(logStyle)
+            {
+                alignment = TextAnchor.UpperLeft,
+                normal = { textColor = ToColor(uiDefinition.Menus.Font) }
+            };
+            GUI.Label(descriptionArea, locationBehavior.Description ?? string.Empty, descriptionStyle);
 
             DrawLocationMain(main, location);
             DrawLocationFooter(footer, location);
@@ -527,13 +581,25 @@ namespace TalesOfTheBrave.Unity.UI
             if (selectedLocationAction == null)
             {
                 foreach (var action in location.Behaviors.OfType<ILocationAction>())
-                    if (GUILayout.Button(action.Title, GUILayout.Height(36f)))
+                {
+                    var row = GUILayoutUtility.GetRect(
+                        GUIContent.none,
+                        locationRowStyle,
+                        GUILayout.Height(72f),
+                        GUILayout.ExpandWidth(true));
+                    if (GUI.Button(
+                            row,
+                            WithTooltip(string.Empty, GetLocationActionTooltip(action)),
+                            locationRowStyle))
                     {
                         selectedLocationAction = action;
                         marketTradeSelection = action is MarketBehavior
                             ? new MarketTradeSelection()
                             : null;
                     }
+                    DrawLocationActionRow(row, action);
+                    GUILayout.Space(6f);
+                }
             }
             else if (selectedLocationAction is MarketBehavior market)
             {
@@ -545,31 +611,57 @@ namespace TalesOfTheBrave.Unity.UI
         private void DrawMarket(MarketBehavior market)
         {
             GUILayout.Label(market.Title, titleStyle);
-            DrawMarketRow("Commodity", "Price", "Cargo", "", "", "Market");
             foreach (var marketCommodity in market.Commodities)
             {
                 var commodity = marketCommodity.Commodity;
                 var change = marketTradeSelection.GetChange(commodity);
                 var cargo = context.PlayerShip.GetCargoAmount(commodity) + change;
                 var marketAmount = marketCommodity.CurrentAmount - change;
-                GUILayout.BeginHorizontal();
-                GUILayout.Label(
+                var row = GUILayoutUtility.GetRect(
+                    GUIContent.none,
+                    locationRowStyle,
+                    GUILayout.Height(76f),
+                    GUILayout.ExpandWidth(true));
+                GUI.Box(row, GUIContent.none, locationRowStyle);
+                DrawCargoItemIcon(
+                    new Rect(row.x + 10f, row.y + 10f, 56f, 56f),
+                    commodity);
+                var titleRect = new Rect(row.x + 78f, row.y + 7f, 115f, 26f);
+                GUI.Label(
+                    titleRect,
                     WithTooltip(
                         commodity.Name,
                         $"Target: {marketCommodity.TargetAmount} {commodity.UnitAbbreviation}\n" +
                         $"Consumption: {marketCommodity.Consumption} {commodity.UnitAbbreviation}\n" +
                         $"Production: {marketCommodity.Production} {commodity.UnitAbbreviation}"),
-                    GUILayout.Width(150f));
-                GUILayout.Label($"{marketCommodity.CurrentPrice} G", GUILayout.Width(70f));
-                GUILayout.Label(cargo.ToString(), GUILayout.Width(55f));
-                if (GUILayout.Button("<", GUILayout.Width(34f)))
+                    new GUIStyle(titleStyle) { fontSize = 18 });
+                GUI.Label(
+                    new Rect(titleRect.x, titleRect.yMax, 170f, 36f),
+                    $"Buy {marketCommodity.BuyPrice} G  Sell {marketCommodity.SellPrice} G\n" +
+                    $"Cargo {cargo} {commodity.UnitAbbreviation}",
+                    logStyle);
+                var controlsX = row.xMax - 250f;
+                var cost = change > 0
+                    ? -change * marketCommodity.BuyPrice
+                    : -change * marketCommodity.SellPrice;
+                GUI.Label(
+                    new Rect(controlsX - 125f, row.y + 9f, 120f, 24f),
+                    FormatSignedGold(cost),
+                    logStyle);
+                if (GUI.Button(new Rect(controlsX, row.y + 8f, 36f, 27f), "<"))
                     marketTradeSelection.SelectBuy(
                         context.PlayerShip, marketCommodity, GetTradeQuantity());
-                if (GUILayout.Button(">", GUILayout.Width(34f)))
+                if (GUI.Button(new Rect(controlsX + 42f, row.y + 8f, 36f, 27f), ">"))
                     marketTradeSelection.SelectSell(
                         context.PlayerShip, marketCommodity, GetTradeQuantity());
-                GUILayout.Label(marketAmount.ToString(), GUILayout.Width(60f));
-                GUILayout.EndHorizontal();
+                var previousContentColor = GUI.contentColor;
+                GUI.contentColor = GetMarketStockColor(marketCommodity, marketAmount);
+                GUI.Label(
+                    new Rect(controlsX + 88f, row.y + 9f, 152f, 48f),
+                    $"Market\n{marketAmount} {commodity.UnitAbbreviation}",
+                    logStyle);
+                GUI.contentColor = previousContentColor;
+                GUILayout.Space(6f);
             }
 
             GUILayout.FlexibleSpace();
@@ -579,33 +671,111 @@ namespace TalesOfTheBrave.Unity.UI
             TradeQuantityButton("x10", 10);
             TradeQuantityButton("x100", 100);
             TradeQuantityButton("MAX", int.MaxValue);
-            GUILayout.EndHorizontal();
-            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            GUILayout.Label(
+                $"Total: {FormatSignedGold(marketTradeSelection.GoldChange)}",
+                GUILayout.Width(140f));
             if (GUILayout.Button("Cancel")) marketTradeSelection.Clear();
             var previousEnabled = GUI.enabled;
             GUI.enabled = marketTradeSelection.HasChanges;
-            if (GUILayout.Button("Buy"))
+            if (GUILayout.Button("Accept"))
                 marketTradeSelection.Commit(context.PlayerShip, market);
             GUI.enabled = previousEnabled;
             GUILayout.EndHorizontal();
         }
 
-        private static void DrawMarketRow(
-            string commodity,
-            string price,
-            string cargo,
-            string buy,
-            string sell,
-            string market)
+        private void DrawLocationActionRow(Rect row, ILocationAction action)
         {
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(commodity, GUILayout.Width(150f));
-            GUILayout.Label(price, GUILayout.Width(70f));
-            GUILayout.Label(cargo, GUILayout.Width(55f));
-            GUILayout.Label(buy, GUILayout.Width(34f));
-            GUILayout.Label(sell, GUILayout.Width(34f));
-            GUILayout.Label(market, GUILayout.Width(60f));
-            GUILayout.EndHorizontal();
+            DrawRoundIcon(
+                new Rect(row.x + 10f, row.y + 10f, 52f, 52f),
+                action.IconSprite);
+            GUI.Label(
+                new Rect(row.x + 76f, row.y + 12f, row.width * 0.38f, row.height - 24f),
+                action.Title,
+                new GUIStyle(titleStyle)
+                {
+                    fontSize = 20,
+                    alignment = TextAnchor.MiddleLeft
+                });
+            GUI.Label(
+                new Rect(
+                    row.x + row.width * 0.58f,
+                    row.y + 8f,
+                    row.width * 0.38f,
+                    row.height - 16f),
+                action.AdditionalInfo ?? string.Empty,
+                new GUIStyle(logStyle) { alignment = TextAnchor.MiddleLeft });
+        }
+
+        private static string FormatSignedGold(int amount) =>
+            amount == 0 ? "0 G" : $"{(amount > 0 ? "+" : "")}{amount} G";
+
+        private void DrawCargoItemIcon(Rect rect, ICargoItem item) =>
+            DrawRoundIcon(rect, item?.IconSprite);
+
+        private void DrawRoundIcon(Rect rect, string spriteName)
+        {
+            GUI.Box(rect, GUIContent.none, iconFrameStyle);
+            if (string.IsNullOrWhiteSpace(spriteName)) return;
+            var sprite = graphics.GetSprite(spriteName);
+            if (sprite != null)
+                DrawSprite(Inset(rect, 5f), sprite, ScaleMode.ScaleToFit);
+        }
+
+        private static void DrawSprite(Rect rect, Sprite sprite, ScaleMode scaleMode)
+        {
+            if (sprite == null) return;
+            var drawRect = rect;
+            if (scaleMode == ScaleMode.ScaleToFit)
+            {
+                var spriteAspect = sprite.rect.width / sprite.rect.height;
+                var rectAspect = rect.width / rect.height;
+                if (spriteAspect > rectAspect)
+                {
+                    var height = rect.width / spriteAspect;
+                    drawRect = new Rect(
+                        rect.x,
+                        rect.center.y - height * 0.5f,
+                        rect.width,
+                        height);
+                }
+                else
+                {
+                    var width = rect.height * spriteAspect;
+                    drawRect = new Rect(
+                        rect.center.x - width * 0.5f,
+                        rect.y,
+                        width,
+                        rect.height);
+                }
+            }
+
+            var texture = sprite.texture;
+            var textureRect = sprite.textureRect;
+            var uv = new Rect(
+                textureRect.x / texture.width,
+                textureRect.y / texture.height,
+                textureRect.width / texture.width,
+                textureRect.height / texture.height);
+            GUI.DrawTextureWithTexCoords(drawRect, texture, uv, true);
+        }
+
+        private Color GetMarketStockColor(
+            MarketCommodity commodity,
+            int amount)
+        {
+            var percentage = commodity.TargetAmount <= 0
+                ? 100f
+                : amount * 100f / commodity.TargetAmount;
+            if (percentage <= commodity.MinAmountPercentage)
+                return new Color(0.95f, 0.2f, 0.2f);
+            if (percentage < 90f)
+                return new Color(1f, 0.82f, 0.18f);
+            if (percentage <= 110f)
+                return uiDefinition.MarketNormalStock;
+            if (percentage < commodity.MaxAmountPercentage)
+                return new Color(0.25f, 0.9f, 0.35f);
+            return new Color(0.2f, 0.9f, 0.95f);
         }
 
         private void TradeQuantityButton(string label, int quantity)
@@ -652,25 +822,42 @@ namespace TalesOfTheBrave.Unity.UI
             }
         }
 
-        private static string GetLocationActionTooltip(ILocationAction action)
+        private string GetLocationActionTooltip(ILocationAction action)
         {
             if (!(action is MarketBehavior market)) return action.Title;
             return string.Join(
                 "\n",
                 market.Commodities.Select(entry =>
-                    $"{entry.CurrentAmount} {entry.Commodity.UnitAbbreviation} of " +
-                    $"{entry.Commodity.Name} at {entry.CurrentPrice} G"));
+                {
+                    var color = ColorUtility.ToHtmlStringRGB(
+                        GetMarketStockColor(entry, entry.CurrentAmount));
+                    return $"<color=#{color}>{entry.CurrentAmount} " +
+                           $"{entry.Commodity.UnitAbbreviation} of " +
+                           $"{entry.Commodity.Name} at B {entry.BuyPrice} / " +
+                           $"S {entry.SellPrice} G</color>";
+                }));
         }
 
         private static string GetCargoTooltip(
             TalesOfTheBrave.Simulation.Movement.Transport ship)
         {
-            if (ship.CurrentCargo.Count == 0) return "Cargo hold is empty.";
-            return string.Join(
-                "\n",
-                ship.CurrentCargo.Select(cargo =>
-                    $"{cargo.Amount} {cargo.Commodity.UnitAbbreviation} of " +
-                    cargo.Commodity.Name));
+            return "Wares\n" +
+                   FormatCargoSection(ship.Wares) +
+                   "\nSupplies\n" +
+                   FormatCargoSection(ship.Supplies) +
+                   "\nRestricted\n" +
+                   FormatCargoSection(ship.Restricted);
+        }
+
+        private static string FormatCargoSection<T>(
+            IEnumerable<T> cargo)
+            where T : CargoItemStack
+        {
+            var entries = cargo
+                .Select(item =>
+                    $"{item.Amount} {item.Item.UnitAbbreviation} of {item.Item.Name}")
+                .ToArray();
+            return entries.Length == 0 ? "Empty" : string.Join("\n", entries);
         }
 
         private void GetLayoutRects(out Rect leftMenu, out Rect mainZone, out Rect bottomMenu)
@@ -698,7 +885,9 @@ namespace TalesOfTheBrave.Unity.UI
 
         private void DrawTooltip()
         {
-            if (Event.current.type != EventType.Repaint) return;
+            if (Event.current.type != EventType.Repaint ||
+                touchInputDetected ||
+                UnityEngine.Time.unscaledTime < suppressTooltipUntil) return;
 
             var text = GUI.tooltip;
             if (string.IsNullOrWhiteSpace(text) &&
@@ -813,6 +1002,8 @@ namespace TalesOfTheBrave.Unity.UI
             if (menuPanelTexture != null) Destroy(menuPanelTexture);
             if (mapPanelTexture != null) Destroy(mapPanelTexture);
             if (tooltipTexture != null) Destroy(tooltipTexture);
+            if (iconFrameTexture != null) Destroy(iconFrameTexture);
+            if (portraitFrameTexture != null) Destroy(portraitFrameTexture);
         }
 
     }
