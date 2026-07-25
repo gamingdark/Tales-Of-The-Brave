@@ -11,7 +11,7 @@ Current MVP scope: Baltic Sea naval trade.
 MVP stage version plan:
 
 | Version | Reached | Tagline | Features |
-|:-----------:|:--------|:-------:|:---------------------|
+|:-----------:|:-------:|:-------:|:---------------------|
 | 0.1 | ✅ | Move It Move It | Map, movement, locations |
 | 0.2 | ✅ | Dynamic Economy 101 | Trade commodities, economy simulation, selling & buying |
 | 0.3 | ⏳ | Repairs & Resupplies | Maintenance implementation for player transport |
@@ -42,4 +42,4 @@ Latest build at [Tales of the Brave](https://gamingdark.github.io/games/tales-of
 
 # Dev log
 
-2026-07-25 - created the .md you're reading, to closer track progress. Current build version v0.23
+2026-07-25 - created the .md you're reading, to closer track progress. Current deployed build version v0.23
