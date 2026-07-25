@@ -1,8 +1,8 @@
-h1. Tales of the Brave
+# Tales of the Brave
 
 The little simulator that could. For now only naval Baltic trade though.
 
-h2. Current version - approaching 0.3
+## Current version - approaching 0.3
 
 Features breakdown:
 * 0.1 - ✅ - we like to move it, move it
@@ -18,7 +18,7 @@ Features breakdown:
 
 Latest build at [Tales of the Brave](https://gamingdark.github.io/games/tales-of-the-brave/)
 
-h2. Some screenshots
+## Some screenshots
 
 ![Entering port](Screenshots/entering-port.png)
 ![Browsing market](Screenshots/market.png)
