@@ -2,7 +2,7 @@
 
 *The little simulator that could.*
 
-Data-driven world simulation system supporting wide variety of gameplay styles and world setups.
+Data-driven world simulation framework supporting wide variety of gameplay styles and world setups.
 
 Current MVP scope: Baltic Sea naval trade.
 
