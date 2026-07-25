@@ -12,9 +12,9 @@ MVP stage version plan:
 
 | Version | Reached | Tagline | Features |
 |:-----------:|:--------|:-------:|:---------------------|
-| 0.1 | ✅ 2026-07-21 | Move It Move It | Map, movement, locations |
-| 0.2 | ✅ 2026-07-23 | Dynamic Economy 101 | Trade commodities, economy simulation, selling & buying |
-| 0.3 | ⏳ In progress | Repairs & Resupplies | Maintenance implementation for player transport |
+| 0.1 | ✅ | Move It Move It | Map, movement, locations |
+| 0.2 | ✅ | Dynamic Economy 101 | Trade commodities, economy simulation, selling & buying |
+| 0.3 | ⏳ | Repairs & Resupplies | Maintenance implementation for player transport |
 | 0.4 | ❌ | Eventually... | In-game events system (storms, economic shifts, etc.) |
 | 0.5 | ❌ | Information Propagation Station | Information system for propagating and updating world knowledge (like market prices) |
 | 0.6 | ❌ | Saving Our Souls | Persistent gameplay (saving/loading), exernal world definitions (importing/exporting) |
@@ -39,3 +39,7 @@ Latest build at [Tales of the Brave](https://gamingdark.github.io/games/tales-of
 ![Entering port](Screenshots/entering-port.png)
 ![Browsing market](Screenshots/market.png)
 ![Traveling](Screenshots/travel.png)
+
+# Dev log
+
+2026-07-25 - created the .md you're reading, to closer track progress. Current build version v0.23
