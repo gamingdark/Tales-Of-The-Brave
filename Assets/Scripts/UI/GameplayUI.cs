@@ -103,6 +103,7 @@ namespace TalesOfTheBrave.Unity.UI
         private TimeSystemDefinition timeDefinition;
         private GUIStyle nightTintStyle;
         private Vector2 chroniclerScroll;
+        private Vector2 marketScroll;
         private ILocationAction selectedLocationAction;
         private MarketTradeSelection marketTradeSelection;
         private int tradeQuantity = 10;
@@ -287,7 +288,8 @@ namespace TalesOfTheBrave.Unity.UI
             }
 
             GUI.Box(panel, GUIContent.none, mapPanelStyle);
-            DrawMapNightTint(panel);
+            // Night tint rendering is retained for possible future reuse, but
+            // intentionally disabled because it distracts from map interaction.
             DrawEnteringLocationOverlay(panel);
         }
 
@@ -647,6 +649,7 @@ namespace TalesOfTheBrave.Unity.UI
                             locationRowStyle))
                     {
                         selectedLocationAction = action;
+                        marketScroll = Vector2.zero;
                         marketTradeSelection = action is MarketBehavior
                             ? new MarketTradeSelection()
                             : null;
@@ -665,6 +668,11 @@ namespace TalesOfTheBrave.Unity.UI
         private void DrawMarket(MarketBehavior market)
         {
             GUILayout.Label(market.Title, titleStyle);
+            marketScroll = GUILayout.BeginScrollView(
+                marketScroll,
+                false,
+                true,
+                GUILayout.ExpandHeight(true));
             foreach (var marketCommodity in market.Commodities)
             {
                 var commodity = marketCommodity.Commodity;
@@ -717,8 +725,9 @@ namespace TalesOfTheBrave.Unity.UI
                 GUI.contentColor = previousContentColor;
                 GUILayout.Space(6f);
             }
+            GUILayout.EndScrollView();
 
-            GUILayout.FlexibleSpace();
+            GUILayout.Space(6f);
             GUILayout.BeginHorizontal();
             GUILayout.Label("Quantity", GUILayout.Width(70f));
             TradeQuantityButton("x1", 1);
